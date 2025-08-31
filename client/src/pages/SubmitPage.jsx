@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/SubmitPage.css';
 import axios from 'axios'
 import 'flatpickr/dist/flatpickr.min.css';
+import { useNavigate } from 'react-router-dom';
 
 const SubmitPage = () => {
   // Form state
@@ -20,6 +21,8 @@ const SubmitPage = () => {
     message: ''
   });
   
+  const navigate = useNavigate();
+
   // Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -53,9 +56,10 @@ const SubmitPage = () => {
     // Here you would typically send the data to your backend
     //on submit u have to send to request to Backend using api
     // using axios or fetch // best way using axios 
-     let res = await axios.post('http://localhost:3001/api/user-check-data',formData)
-     if(res.data.success===true){
-      alert("Data is saved successfully")
+     let res = await axios.post('http://localhost:3001/api/user-check-data', formData);
+     if (res.data.success === true) {
+      alert("Data is saved successfully");
+      navigate(''); // Redirect after successful submit
      }
   };
 
@@ -385,7 +389,7 @@ const SubmitPage = () => {
           </div>
         </div>
 
-        <button type="submit" className="submit-btn">
+        <button type="submit" className="submit-btn"> 
           <span>Submit Report</span>
           <div className="btn-ripple"></div>
         </button>

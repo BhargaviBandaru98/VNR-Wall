@@ -1,7 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Star } from 'lucide-react';
-import axios from 'axios';
 import '../styles/StudentMessagesCards.css';
 
 const StudentMessageCard = ({ data, onStatusUpdate }) => {
@@ -78,11 +76,15 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
           <div className="source-details">
             <div className="detail-row">
               <span className="label">Platform:</span> 
-              <span className="platform-badge">{data.platform}</span>
+              <span className="platform-badge">
+                {data.highlightedPlatform || data.platform}
+              </span>
             </div>
             <div className="detail-row">
               <span className="label">Sender:</span> 
-              <span className="sender-name">{data.sender}</span>
+              <span className="sender-name">
+                {data.highlightedSender || data.sender}
+              </span>
             </div>
             <div className="detail-row">
               <span className="label">Contact:</span> 
@@ -126,7 +128,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
           </button>
         </div>
         <div className={`message-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
-          {data.messageContent}
+          {data.highlightedMessage || data.messageContent}
         </div>
         {data.tags && data.tags.length > 0 && (
           <div className="tags-container">

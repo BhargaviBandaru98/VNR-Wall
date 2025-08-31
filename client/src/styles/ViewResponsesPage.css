@@ -384,6 +384,13 @@
   margin-bottom: 24px;
   opacity: 0.8;
 }
+.highlight {
+  background-color: yellow;
+  padding: 0 2px;
+  margin: auto 4px;
+  border-radius: 2px;
+}
+
 
 .no-results-title {
   font-size: 1.5rem;

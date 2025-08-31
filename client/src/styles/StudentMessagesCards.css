@@ -614,14 +614,17 @@
 
 .message-content.collapsed {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp:3;
   line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  transition:all 1o
+   ease-in-out;
 }
 
 .message-content.expanded {
   display: block;
+
 }
 
 /* Tags */
@@ -688,12 +691,12 @@
 }
 
 /* Line clamp utility for message content */
-.line-clamp-3 {
+/* .line-clamp-3 {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 3 !important;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
+} */
 
 /* Loading states */
 .loading-skeleton {

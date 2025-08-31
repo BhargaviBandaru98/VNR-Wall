@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "../styles/Login.css";
 
+
 const Login = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +95,7 @@ const Login = () => {
               {/* Action Buttons */}
               <div className="action-buttons">
                 {/* Submit for Verification Button */}
-                <button className="action-btn submit-btn">
+                <button className="action-btn submit-btn" to="submit">
                   <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="22" y1="2" x2="11" y2="13"/>
                     <polygon points="22,2 15,22 11,13 2,9 22,2"/>
@@ -103,7 +104,7 @@ const Login = () => {
                 </button>
 
                 {/* Home Page Button */}
-                <button className="action-btn home-btn">
+                <button className="action-btn home-btn" to ="">
                   <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                     <polyline points="9,22 9,12 15,12 15,22"/>

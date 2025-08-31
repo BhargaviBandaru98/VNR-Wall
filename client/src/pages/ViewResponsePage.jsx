@@ -4,6 +4,19 @@ import axios from 'axios';
 import '../styles/ViewResponsesPage.css';
 import StudentMessageCard from '../components/StudentMessageCards';
 
+// Utility function for highlighting text
+const highlightText = (text, searchTerm) => {
+  if (!searchTerm) return text;
+  const regex = new RegExp(`(${searchTerm})`, "gi");
+  return text.split(regex).map((part, i) =>
+    part.toLowerCase() === searchTerm.toLowerCase() ? (
+      <mark key={i} className="highlight">{part}</mark>
+    ) : (
+      part
+    )
+  );
+};
+
 // Bottom Navigation Component
 const BottomNavigation = ({ categories, activeCategory, setActiveCategory, counts }) => {
   return (
@@ -84,28 +97,27 @@ const CategoryPage = ({
                 <p>{category.description}</p>
               </div>
             </div>
-            
           </div>
 
           {/* Search Bar */}
           <div className="category-search-wrapper">
             <div>
               <Search className="category-search-icon" />
-            <input
-              type="text"
-              placeholder={`Search in ${category.title.toLowerCase()}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="category-search"
-            />
-            {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="category-search-clear"
-              >
-                ×
-              </button>
-            )}
+              <input
+                type="text"
+                placeholder={`Search in ${category.title.toLowerCase()}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="category-search"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="category-search-clear"
+                >
+                  ×
+                </button>
+              )}
             </div>
             
             <div className="category-page-stats">
@@ -131,22 +143,26 @@ const CategoryPage = ({
         ) : (
           <div className="row category-messages-grid">
             {filteredMessages.map(message => (
-              <div className="col-md-6 col-lg-4  col-sm-12">
-                <div key={message.id} className="message-wrapper">
-                <StudentMessageCard data={message} onStatusUpdate={onStatusUpdate} />
-                {message.submittedByUser && (
-                  <div className="submission-badge">
-                    <User size={12} />
-                    <span>Your Submission</span>
-                  </div>
-                )}
+              <div className="col-md-6 col-lg-4 col-sm-12" key={message.id}>
+                <div className="message-wrapper">
+                  <StudentMessageCard 
+                    data={{
+                      ...message,
+                      highlightedMessage: highlightText(message.messageContent, searchTerm),
+                      highlightedSender: highlightText(message.sender, searchTerm),
+                      highlightedPlatform: highlightText(message.platform, searchTerm),
+                    }} 
+                    onStatusUpdate={onStatusUpdate} 
+                  />
+                  {message.submittedByUser && (
+                    <div className="submission-badge">
+                      <User size={12} />
+                      <span>Your Submission</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              </div>
-              
-              
             ))}
-            
           </div>
         )}
       </div>
@@ -167,7 +183,6 @@ const ViewResponses = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState('home'); // 'home' or category id
   const [messages, setMessages] = useState([]);
-  const [filteredMessages, setFilteredMessages] = useState([]);
   const [homeSearchResults, setHomeSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -195,7 +210,6 @@ const ViewResponses = () => {
           submittedByUser: false
         }));
         setMessages(serverMessages);
-        setFilteredMessages(serverMessages);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -311,11 +325,10 @@ const ViewResponses = () => {
 
   // Handle category click to navigate to category page
   const handleCategoryClick = (categoryId) => {
-  setCurrentPage(categoryId);
-  setActiveCategory(categoryId);
-  setSearchTerm('');
+    setCurrentPage(categoryId);
+    setActiveCategory(categoryId);
+    setSearchTerm('');
   };
-
 
   // Handle navigation from bottom nav
   const handleBottomNavClick = (categoryId) => {
@@ -326,17 +339,16 @@ const ViewResponses = () => {
 
   // Get filtered messages for current category
   const getFilteredMessages = () => {
-  if (currentPage === 'home' || activeCategory === 'all') return messages;
+    if (currentPage === 'home' || activeCategory === 'all') return messages;
 
-  if (activeCategory === 'submitted') {
-    return messages.filter(msg => msg.submittedByUser);
-  } else {
-    return messages.filter(
-      msg => msg.status.toLowerCase() === activeCategory.toLowerCase()
-    );
-  }
-};
-
+    if (activeCategory === 'submitted') {
+      return messages.filter(msg => msg.submittedByUser);
+    } else {
+      return messages.filter(
+        msg => msg.status.toLowerCase() === activeCategory.toLowerCase()
+      );
+    }
+  };
 
   // Render home page
   if (currentPage === 'home') {
@@ -365,20 +377,6 @@ const ViewResponses = () => {
             )}
           </div>
         </div>
-
-        {/* Filter Tabs */}
-        {/* <div className="filter-tabs">
-          {categories.map(category => (
-            <button
-              key={category.id}
-              className={`filter-tab ${activeCategory === category.id ? 'active' : ''} ${category.color}`}
-              onClick={() => handleCategoryClick(category.id)}
-            >
-              {category.icon}
-              {category.title}
-            </button>
-          ))}
-        </div> */}
 
         {/* Categories Grid */}
         <div className="container">
@@ -433,7 +431,15 @@ const ViewResponses = () => {
               <div className="search-results-grid">
                 {homeSearchResults.map(message => (
                   <div key={message.id} className="message-wrapper animate-fade-in search-highlight">
-                    <StudentMessageCard data={message} onStatusUpdate={updateMessageStatus} />
+                    <StudentMessageCard 
+                      data={{
+                        ...message,
+                        highlightedMessage: highlightText(message.messageContent, searchTerm),
+                        highlightedSender: highlightText(message.sender, searchTerm),
+                        highlightedPlatform: highlightText(message.platform, searchTerm),
+                      }}
+                      onStatusUpdate={updateMessageStatus} 
+                    />
                     {message.submittedByUser && (
                       <div className="submission-badge">
                         <User size={12} />
