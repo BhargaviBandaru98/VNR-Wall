@@ -49,14 +49,14 @@
   border-radius: 16px;
   box-shadow: var(--student-card-shadow);
   border: 1px solid var(--student-card-border);
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(10px);
 }
 
 .enhanced-card:hover {
-  transform: translateY(-8px) scale(1.02);
+  transform: translateY(-6px);
   box-shadow: var(--student-card-hover-shadow);
   border-color: rgba(59, 130, 246, 0.2);
 }
