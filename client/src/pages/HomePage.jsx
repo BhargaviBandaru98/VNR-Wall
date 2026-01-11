@@ -1,23 +1,23 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext';
 import ActionCard from '../components/ActionCard';
 import '../styles/HomePage.css';
 import Footer from '../components/Footer';
 import logo from '../assets/logo2.jpeg';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileExport } from "@fortawesome/free-solid-svg-icons";
-import { Album } from "../components/album.jsx";
+import { Album } from "../components/Album.jsx";
 import Hero from '../components/Hero.jsx';
 import '../styles/theme.css';
-import '../styles/HomePage.css'
-
-
-
+import '../styles/HomePage.css';
 
 const HomePage = () => {
-  const user = JSON.parse(localStorage.getItem("user"))
-  let fname="Student"
-  if (user!==null){
-    fname = user.family_name}
+  const { user } = useAuth();
+  
+  let fname = "Student";
+  if (user) {
+    fname = user.family_name || user.name?.split(' ')[0] || "Student";
+  }
 
   return (
     <div className="homepage-container">
@@ -34,36 +34,38 @@ const HomePage = () => {
             Welcome, {fname}
           </h1>
           <p className='verify'>
-           Verify Wall<span> - The Verify Zone</span>
+            Verify Wall<span> - The Verify Zone</span>
           </p>
-          <p className='secondaryPara'> To find out the genuine opportunities for the Relentless seeker in you.</p>
+          <p className='secondaryPara'>To find out the genuine opportunities for the Relentless seeker in you.</p>
         </div>
       </header>
 
       <section className="card-section">
         <div className="row">
-          <div className="col-md-6 col-sm-12 pri-card "><Hero /></div>
+          <div className="col-md-6 col-sm-12 pri-card"><Hero /></div>
             
           <div className="col-sm-12 col-md-6">
-        <ActionCard 
-          logo={<FontAwesomeIcon icon={faFileExport} />}
-          title="Submit a Message"
-          className= 'col-md-4 home-card'
-          description="Got a suspicious internship or placement opportunity? Let us verify it for you!"
-          buttonText="Go to Submit Page"
-          linkTo="/submit"
-        />
-        <ActionCard 
-          logo={
-            <Album width={48} height={48} className='view-responses'/>
-          }
-          title="View Submissions"
-          className= 'col-md-4 home-card'
-          description="Want to check the messages submitted and verified? Browse the responses."
-          buttonText="View Responses"
-          linkTo="/responses"
-        />
-        </div>
+            <ActionCard 
+              logo={<FontAwesomeIcon icon={faFileExport} />}
+              title="Submit a Message"
+              className='col-md-4 home-card'
+              description="Got a suspicious internship or placement opportunity? Let us verify it for you!"
+              buttonText="Go to Submit Page"
+              linkTo="/submit"
+            />
+            
+            {/* ✅ FIXED: Show for ALL users, not just admin */}
+            <ActionCard 
+              logo={<Album width={48} height={48} className='view-responses'/>}
+              title={user?.isAdmin ? "View Submissions (Admin)" : "View Submissions"}
+              className='col-md-4 home-card'
+              description={user?.isAdmin 
+                ? "Review and verify all student submissions. Mark as genuine or fake." 
+                : "Want to check the messages submitted and verified? Browse the responses."}
+              buttonText="View Responses"
+              linkTo="/responses"
+            />
+          </div>
         </div>
       </section>
       <Footer/>

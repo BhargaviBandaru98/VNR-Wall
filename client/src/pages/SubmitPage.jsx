@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/SubmitPage.css';
-import axios from 'axios'
-import 'flatpickr/dist/flatpickr.min.css';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import '../styles/SubmitPage.css';
+import axios from 'axios';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
+import 'flatpickr/dist/flatpickr.min.css';
 
 const SubmitPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   // Form state
   const [formData, setFormData] = useState({
+    name: user?.name || '',
+    roll: '',
     branch: '',
     year: '',
     dateReceived: '',
@@ -20,15 +27,12 @@ const SubmitPage = () => {
     genuineRating: '',
     message: ''
   });
-  
-  const navigate = useNavigate();
 
   // Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     
     if (type === 'checkbox') {
-      // Handle checkbox (multi-select)
       if (checked) {
         setFormData({
           ...formData,
@@ -41,7 +45,6 @@ const SubmitPage = () => {
         });
       }
     } else {
-      // Handle other inputs
       setFormData({
         ...formData,
         [name]: value
@@ -52,15 +55,17 @@ const SubmitPage = () => {
   // Handle form submission
   const handleSubmit = async(e) => {
     e.preventDefault();
-    console.log('Form Data:', formData);
-    // Here you would typically send the data to your backend
-    //on submit u have to send to request to Backend using api
-    // using axios or fetch // best way using axios 
-     let res = await axios.post('http://localhost:3001/api/user-check-data', formData);
-     if (res.data.success === true) {
-      alert("Data is saved successfully");
-      navigate(''); // Redirect after successful submit
-     }
+    
+    try {
+      let res = await axios.post(`${BACKEND_URL}/api/user-check-data`, formData);
+      if (res.data.success === true) {
+        alert("Data saved successfully! Your submission is under review.");
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert("Failed to submit data. Please try again.");
+    }
   };
 
   // Initialize flatpickr for date input
@@ -95,6 +100,32 @@ const SubmitPage = () => {
         <div className="form-section">
           <h3>Academic Information</h3>
           
+          <div className="input-group">
+            <label htmlFor="name">Name:</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Enter your full name"
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="roll">Roll Number:</label>
+            <input
+              type="text"
+              id="roll"
+              name="roll"
+              value={formData.roll}
+              onChange={handleChange}
+              placeholder="Enter your roll number"
+              required
+            />
+          </div>
+
           <div className="input-group">
             <label htmlFor="branch">Branch:</label>
             <select 
@@ -341,7 +372,7 @@ const SubmitPage = () => {
                   {detail === 'Other' && formData.personalDetails === 'Other' && (
                     <input 
                       type="text" 
-                      name="personalDetails" 
+                      name="personalDetailsOther" 
                       className="other-input"
                       placeholder="Please specify..."
                       onChange={handleChange}
@@ -364,38 +395,37 @@ const SubmitPage = () => {
                     checked={formData.genuineRating === rating.toString()}
                     onChange={handleChange}
                     required
-                  />
-                  <span className="rating-number">{rating}</span>
-                </label>
-              ))}
-            </div>
-            <div className="rating-labels">
-              <span>Not Genuine</span>
-              <span>Very Genuine</span>
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
-            <textarea 
-              id="message" 
-              name="message" 
-              rows="6" 
-              placeholder="Paste the full message here..." 
-              value={formData.message}
-              onChange={handleChange}
-              required
-            ></textarea>
-          </div>
+              />
+              <span className="rating-number">{rating}</span>
+            </label>
+          ))}
         </div>
+        <div className="rating-labels">
+          <span>Not Genuine</span>
+          <span>Very Genuine</span>
+        </div>
+      </div>
 
-        <button type="submit" className="submit-btn"> 
-          <span>Submit Report</span>
-          <div className="btn-ripple"></div>
-        </button>
-      </form>
-    </main>
-  );
+      <div className="input-group">
+        <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
+        <textarea 
+          id="message" 
+          name="message" 
+          rows="6" 
+          placeholder="Paste the full message here..." 
+          value={formData.message}
+          onChange={handleChange}
+          required
+        ></textarea>
+      </div>
+    </div>
+
+    <button type="submit" className="submit-btn"> 
+      <span>Submit Report</span>
+      <div className="btn-ripple"></div>
+    </button>
+  </form>
+</main>
+);
 };
-
 export default SubmitPage;

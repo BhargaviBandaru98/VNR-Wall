@@ -1,10 +1,12 @@
+require('dotenv').config();
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 6105;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3105';
 
-app.use(cors());
+app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
 
 // Connect to SQLite database

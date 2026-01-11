@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Shield, CheckCircle, Clock, User, Eye, Inbox, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 import '../styles/ViewResponsesPage.css';
 import StudentMessageCard from '../components/StudentMessageCards';
 
@@ -191,7 +192,7 @@ const ViewResponses = () => {
     const fetchMessages = async () => {
       try {
         setLoading(true);
-        const res = await axios.get('http://localhost:3001/api/datas');
+        const res = await axios.get(`${BACKEND_URL}/api/datas`);
         const serverMessages = res.data.map((item, index) => ({
           id: item.id || index + 1,
           category: item.category || 'Not specified',
@@ -222,7 +223,7 @@ const ViewResponses = () => {
   // Update message status
   const updateMessageStatus = async (messageId, newStatus) => {
     try {
-      await axios.put(`http://localhost:3001/api/update-status/${messageId}`, {
+      await axios.put(`${BACKEND_URL}/api/update-status/${messageId}`, {
         status: newStatus.toLowerCase() === 'fake'
       });
       const updatedMessages = messages.map(msg =>

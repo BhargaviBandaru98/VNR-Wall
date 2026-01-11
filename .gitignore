@@ -11,6 +11,11 @@ pids
 *.seed
 
 # dotenv environment variables
+.env
+client/.env
+server/.env
+.env.local
+env.*.local
 
 # OS files
 .DS_Store

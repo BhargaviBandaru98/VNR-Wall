@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Star, Shield, CheckCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import '../styles/StudentMessagesCards.css';
 
 const StudentMessageCard = ({ data, onStatusUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin || false;
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -32,6 +35,13 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
     </div>
   );
 
+  // Handle status update (admin only)
+  const handleStatusChange = (newStatus) => {
+    if (onStatusUpdate) {
+      onStatusUpdate(data.id, newStatus);
+    }
+  };
+
   return (
     <div className="student-card enhanced-card">
       {/* Header */}
@@ -44,9 +54,34 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
             <Calendar size={12} className="calendar-icon" />
             Received on: {data.receivedDate}
           </div>
-          <span className={`status-badge ${getStatusColor(data.status)}`}>
-            {data.status}
-          </span>
+          
+          {/* Status Badge or Admin Buttons */}
+          {isAdmin ? (
+            // Admin sees buttons to change status
+            <div className="admin-actions">
+              <button
+                onClick={() => handleStatusChange('genuine')}
+                className={`admin-btn genuine-btn ${data.status.toLowerCase() === 'genuine' ? 'active' : ''}`}
+                title="Mark as Genuine"
+              >
+                <CheckCircle size={14} />
+                Genuine
+              </button>
+              <button
+                onClick={() => handleStatusChange('fake')}
+                className={`admin-btn fake-btn ${data.status.toLowerCase() === 'fake' ? 'active' : ''}`}
+                title="Mark as Fake"
+              >
+                <Shield size={14} />
+                Fake
+              </button>
+            </div>
+          ) : (
+            // Students see status badge only
+            <span className={`status-badge ${getStatusColor(data.status)}`}>
+              {data.status}
+            </span>
+          )}
         </div>
       </div>
 
