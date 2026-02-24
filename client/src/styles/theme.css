@@ -1,0 +1,349 @@
+/* theme.css */
+
+/* LIGHT THEME (default) */
+:root {
+  --app-background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #f3e8ff 100%);
+  --background: #ffffff;
+  --text: #000000;
+  --primary: #3b82f6;
+  --secondary: #8b5cf6;
+  --accent: #ec4899;
+
+  
+
+  --card-bg: #f8fafc;
+  --card-border: rgba(0, 0, 0, 0.1);
+
+  --button-bg: var(--primary);
+  --button-text: #ffffff;
+
+  --input-bg: #ffffff;
+  --input-text: #000000;
+
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  --animated-gradient: linear-gradient(270deg, #dbeafe, #e0e7ff, #f3e8ff, #dbeafe);
+  /* Hero section */
+  --hero-h1:linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --hero-h2:#535152;
+  --hero-bg:white;
+
+
+  /* Form light mode */
+    --form-before:linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa, #93c5fd);
+    --form-header:linear-gradient(135deg, #1e40af, #3b82f6);
+   --form-bg: #f9faff;
+  --form-input-bg: #ffffff;
+  --form-input-text:#1f2937;
+  --form-select-hover:linear-gradient(145deg, #ffffff, #fafbff);
+  --form-label: #1f2937;
+  --form-h3:#1e40af;
+  --form-h3-before:linear-gradient(135deg, #2563eb, #3b82f6);
+  --form-text: #0f172a;
+  --form-placeholder: #64748b;
+  --form-section:linear-gradient(145deg, #ffffff, #fafbff);
+  --form-section-hover:transparent;
+  --form-button: var(--primary);
+  --form-button-text: #ffffff;
+  --form-submit-btn:linear-gradient(145deg, #2563eb, #1d4ed8);
+  --form-input-focus:linear-gradient(145deg, #ffffff, #fafbff);
+  --form-input-border: #e5e7eb;
+
+  /* Nav-bar */
+  --nav-bg:linear-gradient(rgba(255, 255, 255,0.7));
+  --nav-text: #4b7be5;
+  --nav-text-after:#4B1DAF;
+   --nav-toggler-bg: transparent;
+  --nav-toggler-border: rgba(255, 255, 255, 0.3);
+  --nav-toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+
+    /* Footer Light Mode */
+  --footer-bg: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  --footer-border-top: rgba(124, 58, 237, 0.3);
+  --footer-text: #1e293b;
+  --footer-shadow-1: rgba(124, 58, 237, 0.15);
+  --footer-shadow-2: rgba(0, 0, 0, 0.1);
+  --footer-inset-shadow: rgba(255, 255, 255, 0.8);
+  --footer-heading-bg: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --footer-logo-bg: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --footer-logo-shadow: rgba(59, 130, 246, 0.3);
+  --footer-logo-drop-shadow: rgba(59, 130, 246, 0.3);
+  --footer-shield-color: white;
+  --footer-box-border: #b5cbee;
+  --footer-box-border-left: #3b82f6;
+  --footer-box-bg: #E3E6FE;
+  --footer-box-strong: #3b82f6;
+  --footer-list-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.08));
+  --footer-list-shadow-1: rgba(59, 130, 246, 0.08);
+  --footer-list-inset: rgba(255, 255, 255, 0.8);
+  --footer-list-border: #3b82f6;
+  --footer-list-hover-shadow: rgba(59, 130, 246, 0.15);
+  --footer-list-hover-inset: rgba(255, 255, 255, 0.9);
+  --footer-list-hover-border: #8b5cf6;
+  --footer-list-strong: #3b82f6;
+  --footer-tagline-bg: linear-gradient(135deg, #1e40af, #3b82f6);
+
+  
+  /* View Responses Light Mode */
+  --view-responses-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --view-responses-text: #ffffff;
+  --view-responses-card-bg: rgba(255, 255, 255, 0.95);
+  --view-responses-card-text: #1f2937;
+  --view-responses-search-bg: rgba(255, 255, 255, 0.95);
+  --view-responses-button-bg: rgba(255, 255, 255, 0.2);
+  --view-responses-button-text: white;
+  --view-responses-overlay: rgba(255, 255, 255, 0.1);
+  --view-responses-border: rgba(255, 255, 255, 0.2);
+  --view-responses-shadow: rgba(0, 0, 0, 0.1);
+  --view-responses-icon-bg: rgba(255, 255, 255, 0.2);
+  --view-responses-nav-bg: rgba(255, 255, 255, 0.95);
+  --view-responses-nav-text: #1f2937;
+  --view-responses-nav-active: #3b82f6;
+  --view-responses-category-hover: rgba(0, 0, 0, 0.05);
+
+  /* Student Message Cards Light Mode */
+  --student-card-bg: white;
+  --student-card-border: rgba(0, 0, 0, 0.05);
+  --student-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --student-card-hover-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  --student-card-text: #1f2937;
+  --student-card-label: #6b7280;
+  --student-card-section-bg: rgba(59, 130, 246, 0.05);
+  --student-card-section-border: rgba(59, 130, 246, 0.1);
+  --student-card-section-hover-bg: rgba(59, 130, 246, 0.08);
+  --student-card-message-bg: rgba(249, 250, 251, 0.8);
+  --student-card-message-border: rgba(0, 0, 0, 0.05);
+  --student-card-date-bg: rgba(107, 114, 128, 0.1);
+  --student-card-date-text: #6b7280;
+  --student-card-expand-bg: rgba(107, 114, 128, 0.1);
+  --student-card-expand-text: #6b7280;
+
+  /* Login Light Mode */
+  --login-container-bg: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #f3e8ff 100%);
+  --login-card-bg: rgba(255, 255, 255, 0.8);
+  --login-text-primary: #1f2937;
+  --login-text-secondary: #6b7280;
+  --login-app-title: linear-gradient(135deg, #2563eb, #8b5cf6);
+  --login-logo-bg: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --login-button-bg: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --login-button-hover: linear-gradient(135deg, #2563eb, #7c3aed);
+  --login-security-bg: linear-gradient(135deg, #dbeafe, #f3e8ff);
+  --login-security-border: #bfdbfe;
+  --login-shield-color: white;
+  
+
+  .logo{
+    content:url('../assets/logo2.jpeg');
+  }
+}
+
+/* DARK THEME */
+[data-theme="dark"] {
+  --app-background: linear-gradient(145deg,#0A0F1C 100%,#1E1725 0%);
+  --background: #121212;
+  --text: #f1f5f9;
+  --primary: #7dd3fc;
+  --secondary: #c084fc;
+  --accent: #fb7185;
+
+  
+
+  --card-bg: #1e293b;
+  --card-border: rgba(255, 255, 255, 0.1);
+
+  --button-bg: var(--secondary);
+  --button-text: #ffffff;
+
+  --input-bg: #1e1e1e;
+  --input-text: #e5e5e5;
+
+  --shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+
+  --animated-gradient: linear-gradient(270deg, #1e293b, #334155, #0f172a, #1e293b);
+  /* hero section */
+  --hero-h1:linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --hero-h2:white;
+  --hero-bg:#0A0F1C;
+  /* Form Dark Mode */
+
+   --form-before: linear-gradient(90deg, white, lightblue, black);
+  --form-header: white;
+  --form-bg: linear-gradient(145deg, #0A0F1C 100%, #1E1725 0%);
+  --form-input-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  --form-input-text:black;
+  --form-label: #f1f5f9;
+  --form-h3: linear-gradient(135deg, #ffffff, #e2e8f0, #cbd5e1);
+  --form-h3-before: linear-gradient(135deg, #ffffff, #e2e8f0, #cbd5e1);
+  --form-placeholder: white;
+  --form-section: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  --form-section-hover: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  --form-button: #7dd3fc;
+  --form-button-text: white;
+  --form-text:white;
+  --form-option: black;
+  --form-submit-btn: linear-gradient(145deg, #7dd3fc, #1d4ed8 0%, #48a7d3);
+  --form-input-border: rgba(255, 255, 255, 0.1);
+  --form-input-focus:linear-gradient(#222738);
+
+  /* Nav-bar */
+  --nav-bg: ;
+  --nav-text-after: #f1f5f9;
+  --nav-text:#7DCEF7;
+  --nav-toggler-bg: rgba(125, 211, 252, 0.1);
+  --nav-toggler-border: rgba(125, 211, 252, 0.3);
+  --nav-toggler-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28125, 211, 252, 0.8%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+
+   /* Footer Dark Mode */
+  --footer-bg: linear-gradient(135deg, rgba(10, 15, 28, 0.95), rgba(30, 23, 37, 0.95));
+  --footer-border-top: rgba(125, 211, 252, 0.3);
+  --footer-text: #f1f5f9;
+  --footer-shadow-1: rgba(125, 211, 252, 0.15);
+  --footer-shadow-2: rgba(0, 0, 0, 0.4);
+  --footer-inset-shadow: rgba(255, 255, 255, 0.1);
+  --footer-heading-bg: linear-gradient(135deg, #7dd3fc, #c084fc);
+  --footer-logo-bg: linear-gradient(135deg, #7dd3fc, #c084fc);
+  --footer-logo-shadow: rgba(125, 211, 252, 0.4);
+  --footer-logo-drop-shadow: rgba(125, 211, 252, 0.4);
+  --footer-shield-color: #0A0F1C;
+  --footer-box-border: rgba(125, 211, 252, 0.2);
+  --footer-box-border-left: #7dd3fc;
+  --footer-box-bg: linear-gradient(145deg, rgba(125, 211, 252, 0.08), rgba(192, 132, 252, 0.05));
+  --footer-box-strong: #7dd3fc;
+  --footer-list-bg: linear-gradient(135deg, rgba(125, 211, 252, 0.08), rgba(192, 132, 252, 0.08));
+  --footer-list-shadow-1: rgba(125, 211, 252, 0.08);
+  --footer-list-inset: rgba(255, 255, 255, 0.1);
+  --footer-list-border: #7dd3fc;
+  --footer-list-hover-shadow: rgba(125, 211, 252, 0.2);
+  --footer-list-hover-inset: rgba(255, 255, 255, 0.15);
+  --footer-list-hover-border: #c084fc;
+  --footer-list-strong: #7dd3fc;
+  --footer-tagline-bg: linear-gradient(135deg, #7dd3fc, #c084fc);
+
+
+   /* View Responses Dark Mode */
+  --view-responses-bg: linear-gradient(145deg, #0A0F1C 0%, #1E1725 50%, #0f0a19 100%);
+  --view-responses-text: #f1f5f9;
+  --view-responses-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  --view-responses-card-text: #f1f5f9;
+  --view-responses-search-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+  --view-responses-button-bg: rgba(255, 255, 255, 0.1);
+  --view-responses-button-text: #f1f5f9;
+  --view-responses-overlay: rgba(255, 255, 255, 0.05);
+  --view-responses-border: rgba(255, 255, 255, 0.1);
+  --view-responses-shadow: rgba(0, 0, 0, 0.3);
+  --view-responses-icon-bg: rgba(255, 255, 255, 0.1);
+  --view-responses-nav-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+  --view-responses-nav-text: #f1f5f9;
+  --view-responses-nav-active: #7dd3fc;
+  --view-responses-category-hover: rgba(255, 255, 255, 0.08);
+
+  /* Student Message Cards Dark Mode */
+  --student-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  --student-card-border: rgba(255, 255, 255, 0.1);
+  --student-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --student-card-hover-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --student-card-text: #f1f5f9;
+  --student-card-label: #cbd5e1;
+  --student-card-section-bg: rgba(125, 211, 252, 0.08);
+  --student-card-section-border: rgba(125, 211, 252, 0.2);
+  --student-card-section-hover-bg: rgba(125, 211, 252, 0.12);
+  --student-card-message-bg: rgba(255, 255, 255, 0.03);
+  --student-card-message-border: rgba(255, 255, 255, 0.08);
+  --student-card-date-bg: rgba(255, 255, 255, 0.08);
+  --student-card-date-text: #7dd3fc;
+  --student-card-expand-bg: rgba(255, 255, 255, 0.08);
+  --student-card-expand-text: #cbd5e1;
+
+  /* Login Dark Mode */
+  --login-container-bg: linear-gradient(145deg, #0A0F1C 0%, #1E1725 50%, #0f0a19 100%);
+  --login-card-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  --login-text-primary: #f1f5f9;
+  --login-text-secondary: #cbd5e1;
+  --login-app-title: linear-gradient(135deg, #7dd3fc, #c084fc);
+  --login-logo-bg: linear-gradient(135deg, #7dd3fc, #c084fc);
+  --login-button-bg: linear-gradient(135deg, #7dd3fc, #c084fc);
+  --login-button-hover: linear-gradient(135deg, #0ea5e9, #a855f7);
+  --login-security-bg: linear-gradient(135deg, rgba(125, 211, 252, 0.08), rgba(192, 132, 252, 0.08));
+  --login-security-border: rgba(125, 211, 252, 0.2);
+  --login-shield-color: #0A0F1C;
+
+  input[type="text"],
+input[type="email"],
+select,
+textarea{
+  box-shadow: none;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus{
+  box-shadow: none;
+}
+
+/* .logo,.subnav-logo{
+  content: url('../assets/logo.night.png');
+} */
+
+}
+
+/* THEME TRANSITION */
+:root, [data-theme="dark"] {
+  transition: all 0.3s ease-in-out;
+}
+
+/* BACKGROUND GRADIENT AREA (no circles) */
+.animated-gradient-bg {
+  background: var(--animated-gradient);
+  background-size: 800% 800%;
+  animation: gradientFlow 15s ease infinite;
+}
+
+/* Keyframes */
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+
+[data-theme="dark"] {
+  /* Variable overrides */
+  --bg-color: #121212;
+  --text-color: #f1f5f9;
+  --primary-color: #7dd3fc;
+  --card-bg: #0A0F1C;
+
+  /* Extra dark mode–only styles */
+  .card,.pri-card{
+    border: 4px solid #152648;
+    background: var(--card-bg);
+    box-shadow: none;
+  }
+
+  .card:hover,.pri-card:hover{
+    box-shadow: 0 0 12px rgba(1, 10, 88, 0.993);
+    border-top: none;
+    box-shadow: 
+    0 10px 30px rgba(59, 130, 246, 0.15),
+    0 1px 8px rgba(255, 255, 255, 0.1),
+    inset 0 4px 0 rgba(255, 255, 255, 0.8);
+  /* max-width: 400px; */
+  }
+
+  .hero1{
+    background: none;
+    box-shadow: none;
+  }
+
+  .hero1::before{
+    content:none;
+  }
+  
+}
