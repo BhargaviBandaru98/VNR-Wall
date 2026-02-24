@@ -26,13 +26,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData) => {
     const email = userData.email.toLowerCase();
-    
+
     // ✅ UPDATED: Check if user is admin first
     const isAdmin = ADMIN_EMAILS.includes(email);
-    
+
     // ✅ UPDATED: Only check college email for non-admin users
     if (!isAdmin && !email.endsWith('@vnrvjiet.in')) {
-      throw new Error('Only college email IDs (@vnrvjiet.in) or authorized admins are allowed');
+      throw new Error('Access restricted to VNRVJIET students only. Please use your @vnrvjiet.in college email to login.');
     }
 
     const userWithRole = {
@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }) => {
 
     setUser(userWithRole);
     localStorage.setItem('user', JSON.stringify(userWithRole));
-    
+
     return userWithRole;
   };
 
