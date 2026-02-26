@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
     // ✅ UPDATED: Only check college email for non-admin users
     if (!isAdmin && !email.endsWith('@vnrvjiet.in')) {
-      throw new Error('Access restricted to VNRVJIET students only. Please use your @vnrvjiet.in college email to login.');
+      throw new Error('Access restricted to VNRVJIET students only.');
     }
 
     const userWithRole = {

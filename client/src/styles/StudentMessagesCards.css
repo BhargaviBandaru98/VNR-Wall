@@ -871,8 +871,10 @@
 /* Admin Action Buttons */
 .admin-actions {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+  min-width: 180px;
 }
 
 .admin-btn {
@@ -909,6 +911,34 @@
   background: linear-gradient(135deg, #059669, #047857);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
   transform: scale(1.05);
+}
+
+/* 🔍 Proof of Verification Button */
+.proof-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-color: #2563eb;
+  color: white;
+  justify-content: center;
+  font-size: 0.7rem;
+  padding: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.proof-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.manual-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.manual-actions .admin-btn {
+  flex: 1;
+  justify-content: center;
 }
 
 .fake-btn {
@@ -979,7 +1009,7 @@
   outline-offset: 2px;
 }
 
-/* ── AI Score Strip (top of card) ─────────────────── */
+/* ── Verification Summary Strip (top of card) ─────── */
 .card-ai-strip {
   display: flex;
   align-items: center;
@@ -1174,7 +1204,7 @@
 
 [data-theme="dark"] .modal-value { color: #f1f5f9; }
 
-/* ── No AI Block ─────────────────────────────────── */
+/* ── Verification Modal Block ─────────────────────── */
 .modal-no-ai {
   background: rgba(234,179,8,0.08);
   border: 1px solid rgba(234,179,8,0.2);
@@ -1191,7 +1221,7 @@
   color: #fbbf24;
 }
 
-/* ── AI Section ──────────────────────────────────── */
+/* ── Verification Section ─────────────────────────── */
 .modal-ai-section {
   margin-bottom: 24px;
 }

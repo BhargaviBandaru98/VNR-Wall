@@ -74,17 +74,17 @@ const AIDetailModal = ({ data, onClose }) => {
           </div>
         </div>
 
-        {/* AI Not Available */}
+        {/* Not Available */}
         {fakeScore === null && (
           <div className="modal-no-ai">
-            <span>⏳ AI analysis not yet run for this submission.</span>
+            <span>⏳ Verification analysis not yet run for this submission.</span>
           </div>
         )}
 
-        {/* AI Verdict Block */}
+        {/* Verdict Block */}
         {fakeScore !== null && (
           <div className="modal-ai-section">
-            <h3 className="modal-section-heading">🤖 AI Verification Result</h3>
+            <h3 className="modal-section-heading">🔍 Verification Analysis</h3>
 
             {/* Show Real first if dominant, else Fake first */}
             {[
@@ -110,7 +110,9 @@ const AIDetailModal = ({ data, onClose }) => {
                       style={{ width: `${pct}%`, background: color }}
                     />
                   </div>
-                  <p className="modal-score-reason">{reason}</p>
+                  <p className="modal-score-reason" style={{ color: isGenuine ? genuineColor : fakeColor, fontWeight: isPrimary ? '600' : '400' }}>
+                    {reason}
+                  </p>
                 </div>
               );
             })}
@@ -125,14 +127,14 @@ const AIDetailModal = ({ data, onClose }) => {
               </span>
               {aiResult && (
                 <span className={`modal-meta-chip ${aiResult === 'REAL' ? 'chip-real' : aiResult === 'FAKE' ? 'chip-fake' : 'chip-neutral'}`}>
-                  AI Says: {aiResult}
+                  System Verdict: {aiResult === 'REAL' ? 'GENUINE' : aiResult}
                 </span>
               )}
             </div>
 
             {path && (
               <div className="modal-path">
-                <span className="modal-label">Investigation Path:</span>
+                <span className="modal-label">Verification Journey:</span>
                 <span className="modal-path-text">{path}</span>
               </div>
             )}
@@ -241,21 +243,30 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
             {isAdmin ? (
               <div className="admin-actions" onClick={e => e.stopPropagation()}>
                 <button
-                  onClick={() => handleStatusChange('genuine')}
-                  className={`admin-btn genuine-btn ${data.status.toLowerCase() === 'genuine' ? 'active' : ''}`}
-                  title="Mark as Genuine"
+                  onClick={() => setShowModal(true)}
+                  className="admin-btn proof-btn"
+                  title="Review the evidence used to verify this message."
                 >
-                  <CheckCircle size={14} />
-                  Genuine
+                  🔍 View Proof of Verification
                 </button>
-                <button
-                  onClick={() => handleStatusChange('fake')}
-                  className={`admin-btn fake-btn ${data.status.toLowerCase() === 'fake' ? 'active' : ''}`}
-                  title="Mark as Fake"
-                >
-                  <Shield size={14} />
-                  Fake
-                </button>
+                <div className="manual-actions">
+                  <button
+                    onClick={() => handleStatusChange('genuine')}
+                    className={`admin-btn genuine-btn ${data.status.toLowerCase() === 'genuine' ? 'active' : ''}`}
+                    title="Mark as Genuine"
+                  >
+                    <CheckCircle size={14} />
+                    Genuine
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange('fake')}
+                    className={`admin-btn fake-btn ${data.status.toLowerCase() === 'fake' ? 'active' : ''}`}
+                    title="Mark as Fake"
+                  >
+                    <Shield size={14} />
+                    Fake
+                  </button>
+                </div>
               </div>
             ) : (
               <span className={`status-badge ${getStatusColor(data.status)}`}>
@@ -265,7 +276,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
           </div>
         </div>
 
-        {/* AI Score Strip — quick glance if available */}
+        {/* Verification Summary Strip — quick glance if available */}
         {hasAI && (
           <div className="card-ai-strip">
             <span className="ai-strip-fake">
@@ -374,7 +385,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
         {/* Click-to-view hint */}
         <div className="card-view-hint">
           <ExternalLink size={12} />
-          <span className='font-bold'>Click card to view {hasAI ? 'AI analysis & ' : ''}full details</span>
+          <span className='font-bold'>Click card to view {hasAI ? 'Verification Analysis & ' : ''}full details</span>
         </div>
 
         {/* Hover overlay */}

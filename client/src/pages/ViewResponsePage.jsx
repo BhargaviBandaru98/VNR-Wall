@@ -232,11 +232,12 @@ const ViewResponses = () => {
   // Update message status
   const updateMessageStatus = async (messageId, newStatus) => {
     try {
+      const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase();
       await axios.put(`${BACKEND_URL}/api/update-status/${messageId}`, {
-        status: newStatus.toLowerCase() === 'fake'
+        status: formattedStatus
       });
       const updatedMessages = messages.map(msg =>
-        msg.id === messageId ? { ...msg, status: newStatus.toLowerCase() } : msg
+        msg.id === messageId ? { ...msg, status: formattedStatus.toLowerCase() } : msg
       );
       setMessages(updatedMessages);
     } catch (err) {

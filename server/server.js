@@ -106,9 +106,48 @@ app.post('/api/user-check-data', (req, res) => {
     setImmediate(async () => {
       try {
         console.log('\n====== PIPELINE START: ID', newId, '======');
-        let investigationPath = [];
         const submissionData = { id: newId, name, roll, branch, message, category, platform, sender };
 
+        // ─── Phase 6d: Deduplication (Cache) Layer ────────────────────────────
+        console.log('[Deduplication] Checking for existing identical message...');
+        const duplicateCheckSql = `
+          SELECT id, status, ai_score, ai_result, ai_confidence, ai_evidence 
+          FROM datacheck 
+          WHERE message = ? AND ai_checked = 1 AND id != ?
+          LIMIT 1
+        `;
+
+        const existingResult = await new Promise((resolve) => {
+          db.get(duplicateCheckSql, [message, newId], (err, row) => {
+            if (err) {
+              console.error('[Deduplication] Error:', err.message);
+              resolve(null);
+            } else {
+              resolve(row);
+            }
+          });
+        });
+
+        if (existingResult) {
+          console.log('[Deduplication] ♻️  Matching message found (ID: ' + existingResult.id + '). Using cached result.');
+          const cachedEvidence = `[CACHED RESULT] ${existingResult.ai_evidence}`;
+
+          await new Promise((resolve) => {
+            db.run(
+              `UPDATE datacheck SET status = ?, ai_score = ?, ai_result = ?, ai_confidence = ?, ai_evidence = ?, ai_checked = 1, ai_last_checked = datetime('now') WHERE id = ?`,
+              [existingResult.status, existingResult.ai_score, existingResult.ai_result, existingResult.ai_confidence, cachedEvidence, newId],
+              (err) => {
+                if (err) console.error('[Deduplication] Cache update failed:', err.message);
+                resolve();
+              }
+            );
+          });
+
+          console.log('====== PIPELINE END (CACHED): ID', newId, '======\n');
+          return; // Skip all API calls
+        }
+
+        let investigationPath = [];
         // ─── STAGE 0: Google Web Risk — Instant URL Block ─────────────────────
         console.log('[Stage 0] Google Web Risk check...');
         const webRisk = await checkUrlSafety(message);
@@ -172,10 +211,15 @@ app.post('/api/user-check-data', (req, res) => {
         }
         // Branch 4: Low fake score, genuine not dominant → In Review (no action)
 
-        // Build final evidence string — include both scores and genuine evidence
+        // Build final evidence string — include both scores, genuine evidence, risk level, and guidance
+        const riskPrefix = aiResult.risk_level ? `[${aiResult.risk_level.toUpperCase()}] ` : '';
+        const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
+          ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
+          : '';
+
         const finalEvidence = genuineScore > fakeScore
-          ? `GENUINE: ${aiResult.genuine_evidence} | Fake Score: ${fakeScore} | Genuine Score: ${genuineScore} | Path: ${investigationPath.join(' → ')}`
-          : `${aiResult.evidence} | Fake Score: ${fakeScore} | Genuine Score: ${genuineScore} | Path: ${investigationPath.join(' → ')}`;
+          ? `${riskPrefix}GENUINE: ${aiResult.genuine_evidence} | Fake Score: ${fakeScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`
+          : `${riskPrefix}${aiResult.evidence} | Fake Score: ${fakeScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
 
         // Save AI results to DB
         db.run(
