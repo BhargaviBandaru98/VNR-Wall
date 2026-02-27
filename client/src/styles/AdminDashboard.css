@@ -1,0 +1,184 @@
+.admin-container {
+    max-width: 1200px;
+    margin: 12vh auto;
+    padding: 2rem;
+    background: var(--bg-primary);
+    border-radius: 24px;
+}
+
+.admin-header {
+    margin-bottom: 3rem;
+}
+
+.admin-header h1 {
+    font-family: 'gilroy-black';
+    font-size: 2.5rem;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+.admin-header p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.1);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.stat-label {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 2rem;
+    font-family: 'gilroy-black';
+    color: var(--text-primary);
+}
+
+.charts-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.chart-item {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.chart-header h3 {
+    font-family: 'gilroy-bold';
+    font-size: 1.2rem;
+}
+
+.role-row {
+    margin-bottom: 1.5rem;
+}
+
+.role-name {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.role-bar-bg {
+    height: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.role-bar-fill {
+    height: 100%;
+    background: #2563eb;
+    border-radius: 4px;
+    transition: width 1s ease-out;
+}
+
+.demo-fill {
+    background: #10b981;
+}
+
+.role-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.college-tracking {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.college-tracking h3 {
+    font-family: 'gilroy-bold';
+    margin-bottom: 1.5rem;
+}
+
+.college-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.college-tag {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.admin-loader {
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'gilroy-bold';
+    font-size: 1.2rem;
+    color: #2563eb;
+}
+
+@media (max-width: 1024px) {
+    .charts-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-container {
+        padding: 1rem;
+        margin: 10vh auto;
+    }
+}

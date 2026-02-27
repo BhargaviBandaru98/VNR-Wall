@@ -8,18 +8,31 @@ const Login = () => {
   const { user, login, logout, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Phase 8b: Integrated Login State
+  const [collegeName, setCollegeName] = useState("");
+  const [role, setRole] = useState("");
+  const [yearOfStudy, setYearOfStudy] = useState("");
+
   const navigate = useNavigate();
+
+  // Validate fields before enabling Google Login
+  const isFormValid = () => {
+    if (!collegeName.trim() || !role) return false;
+    if (role === 'student' && !yearOfStudy) return false;
+    return true;
+  };
 
   useEffect(() => {
     // Handle OAuth callback
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const token = params.get("access_token");
-    
+
     if (token) {
       setIsLoading(true);
       setError("");
-      
+
       fetch("https://www.googleapis.com/oauth2/v1/userinfo?alt=json", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -29,21 +42,24 @@ const Login = () => {
         .then((userData) => {
           try {
             // Validate and login user
-            const loggedInUser = login(userData);
-            setIsLoading(false);
-            
-            // Clear URL hash
-            window.history.replaceState({}, document.title, "/login");
-            
-            // Show success message with role
-            alert(`Welcome ${loggedInUser.name}! Logged in as ${loggedInUser.role.toUpperCase()}`);
-            
-            // Redirect based on role
-            if (loggedInUser.isAdmin) {
-              navigate("/responses");
-            } else {
-              navigate("/");
-            }
+            login(userData).then(loggedInUser => {
+              setIsLoading(false);
+
+              // Clear URL hash
+              window.history.replaceState({}, document.title, "/login");
+
+              // Show success message with role
+              alert(`Welcome ${loggedInUser.name}!`);
+
+              // Redirect based on profile status
+              if (loggedInUser.isAdmin) {
+                navigate("/responses");
+              } else if (!loggedInUser.isProfileComplete) {
+                navigate("/profile-setup");
+              } else {
+                navigate("/");
+              }
+            });
           } catch (err) {
             setIsLoading(false);
             setError(err.message);
@@ -61,22 +77,33 @@ const Login = () => {
   }, [login, navigate]);
 
   const handleLogin = () => {
+    if (!isFormValid()) {
+      setError("Please fill all mandatory fields before logging in.");
+      return;
+    }
+
+    // Save profile data to sessionStorage to persist across the Google OAuth redirect
+    sessionStorage.setItem('pendingProfile', JSON.stringify({
+      collegeName: collegeName.trim(),
+      role,
+      yearOfStudy: role === 'student' ? yearOfStudy : null
+    }));
+
     setIsLoading(true);
     setError("");
     // const clientId = "454432176985-mau86u28qd49dd3n2hfeh7mpi75qlse5.apps.googleusercontent.com";
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-    // ✅ FIXED: Use environment variable for frontend URL
-    const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || 'http://localhost:3105';
-    const redirectUri = `${FRONTEND_URL}/login`;
-    
+    // ✅ FIXED: Use current origin to ensure exact match with Google Cloud Console configuration
+    const redirectUri = `${window.location.origin}/login`;
+
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
-    
+
     // ✅ REMOVED: &hd=vnrvjiet.in (to allow Gmail admin logins)
-   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${encodeURIComponent(
-  scope
-)}&include_granted_scopes=true&state=login`;
-    
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${encodeURIComponent(
+      scope
+    )}&include_granted_scopes=true&state=login`;
+
     window.location.href = url;
   };
 
@@ -99,18 +126,18 @@ const Login = () => {
             <div className="logout-header">
               <div className="user-avatar">
                 <svg className="user-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
               </div>
               <h2 className="logout-title">
                 {user.isAdmin ? "Admin Profile" : "Student Profile"}
               </h2>
               <p className="logout-subtitle">
-                VNR WALL - {user.isAdmin ? "Administrator Account" : "Verified Student Account"}
+                VerifyWall - {user.isAdmin ? "Administrator Account" : "Verified Student Account"}
               </p>
             </div>
-            
+
             <div className="logout-content">
               {/* Student/Admin Information */}
               <div className="student-info">
@@ -125,7 +152,7 @@ const Login = () => {
                   </div>
                   <div className="info-row">
                     <span className="info-label">Role:</span>
-                    <span className="info-value" style={{ 
+                    <span className="info-value" style={{
                       color: user.isAdmin ? '#ef4444' : '#10b981',
                       fontWeight: '700'
                     }}>
@@ -141,8 +168,8 @@ const Login = () => {
                 {/* Status Badge */}
                 <div className="status-badge1">
                   <svg className="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 12l2 2 4-4"/>
-                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9 12l2 2 4-4" />
+                    <circle cx="12" cy="12" r="10" />
                   </svg>
                   <span className="status-text">
                     {user.isAdmin ? "Administrator Access" : "Verified Student Account"}
@@ -156,7 +183,7 @@ const Login = () => {
                 {user.isAdmin && (
                   <button className="action-btn submit-btn" onClick={() => handleNavigate("/responses")}>
                     <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     View All Submissions (Admin)
                   </button>
@@ -167,16 +194,16 @@ const Login = () => {
                   <>
                     <button className="action-btn submit-btn" onClick={() => handleNavigate("/submit")}>
                       <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="22" y1="2" x2="11" y2="13"/>
-                        <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22,2 15,22 11,13 2,9 22,2" />
                       </svg>
                       Submit for Verification
                     </button>
 
                     <button className="action-btn home-btn" onClick={() => handleNavigate("/")}>
                       <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        <polyline points="9,22 9,12 15,12 15,22"/>
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9,22 9,12 15,12 15,22" />
                       </svg>
                       Go to Home Page
                     </button>
@@ -186,9 +213,9 @@ const Login = () => {
                 {/* Logout Button (for both) */}
                 <button onClick={handleLogout} className="action-btn logout-btn">
                   <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16,17 21,12 16,7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16,17 21,12 16,7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                   Logout
                 </button>
@@ -200,14 +227,14 @@ const Login = () => {
                 <p className="instructions-text">
                   {user.isAdmin ? (
                     <>
-                      • Use "View All Submissions" to manage all student submissions<br/>
-                      • Mark submissions as Genuine or Fake<br/>
+                      • Use "View All Submissions" to manage all student submissions<br />
+                      • Mark submissions as Genuine or Scam<br />
                       • Use "Logout" to securely exit your account
                     </>
                   ) : (
                     <>
-                      • Use "Submit for Verification" to verify new opportunities<br/>
-                      • Use "Go to Home Page" to access your dashboard<br/>
+                      • Use "Submit for Verification" to verify new opportunities<br />
+                      • Use "Go to Home Page" to access your dashboard<br />
                       • Use "Logout" to securely exit your account
                     </>
                   )}
@@ -229,11 +256,11 @@ const Login = () => {
           <div className="logo-container">
             <div className="logo-icon">
               <svg className="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
           </div>
-          <h1 className="app-title">VNR WALL</h1>
+          <h1 className="app-title">VerifyWall</h1>
           <p className="app-subtitle">The Verify Zone for Genuine Opportunities</p>
         </div>
 
@@ -241,9 +268,9 @@ const Login = () => {
         <div className="login-card">
           <div className="login-header">
             <h2 className="login-title">Welcome Back!</h2>
-            <p className="login-subtitle">Login with your college email to continue</p>
+            <p className="login-subtitle">Login with your personal or college email to continue</p>
           </div>
-          
+
           <div className="login-content">
             <div className="login-form">
               {/* Error Message */}
@@ -262,11 +289,79 @@ const Login = () => {
                 </div>
               )}
 
+              {/* Integrated Profile Form */}
+              <div className="profile-capture-section" style={{ marginBottom: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>
+                    College/Organization Name <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={collegeName}
+                    onChange={(e) => setCollegeName(e.target.value)}
+                    placeholder="e.g. VNRVJIET"
+                    style={{
+                      width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db',
+                      fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.2s'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+                    onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>
+                    Your Role <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select
+                    value={role}
+                    onChange={(e) => {
+                      setRole(e.target.value);
+                      if (e.target.value !== 'student') setYearOfStudy('');
+                    }}
+                    style={{
+                      width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db',
+                      fontSize: '0.9rem', backgroundColor: '#fff', outline: 'none', cursor: 'pointer'
+                    }}
+                  >
+                    <option value="" disabled>Select your role...</option>
+                    <option value="student">Student</option>
+                    <option value="faculty">Faculty / Alumni</option>
+                  </select>
+                </div>
+
+                {role === 'student' && (
+                  <div style={{ marginBottom: '1.5rem', animation: 'fadeInDown 0.3s ease' }}>
+                    <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>
+                      Year of Study <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <select
+                      value={yearOfStudy}
+                      onChange={(e) => setYearOfStudy(e.target.value)}
+                      style={{
+                        width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db',
+                        fontSize: '0.9rem', backgroundColor: '#fff', outline: 'none', cursor: 'pointer'
+                      }}
+                    >
+                      <option value="" disabled>Select your year...</option>
+                      <option value="1st Year">1st Year</option>
+                      <option value="2nd Year">2nd Year</option>
+                      <option value="3rd Year">3rd Year</option>
+                      <option value="4th Year">4th Year</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
               {/* Login Button */}
               <button
                 onClick={handleLogin}
-                disabled={isLoading}
-                className="login-btn"
+                disabled={isLoading || !isFormValid()}
+                className={`login-btn ${!isFormValid() ? 'disabled' : ''}`}
+                style={{
+                  opacity: (!isFormValid() || isLoading) ? 0.6 : 1,
+                  cursor: (!isFormValid() || isLoading) ? 'not-allowed' : 'pointer'
+                }}
               >
                 {isLoading ? (
                   <div className="loading-content">
@@ -274,7 +369,7 @@ const Login = () => {
                     Logging in...
                   </div>
                 ) : (
-                  'Login with College Mail ID (@vnrvjiet.in)'
+                  'Login with Google'
                 )}
               </button>
             </div>
@@ -283,13 +378,13 @@ const Login = () => {
             <div className="security-message">
               <div className="security-header">
                 <svg className="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4"/>
-                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9 12l2 2 4-4" />
+                  <circle cx="12" cy="12" r="10" />
                 </svg>
                 <span className="security-text">Secure & Verified</span>
               </div>
               <p className="security-quote">
-                "Only college email IDs (@vnrvjiet.in) are allowed to login"
+                "Universal Login: All personal/college email accounts are now supported."
               </p>
             </div>
           </div>
@@ -298,7 +393,7 @@ const Login = () => {
         {/* Footer */}
         <div className="login-footer">
           <p className="footer-text">
-            © 2024 VNR WALL. Securing your academic journey.
+            © 2024 VerifyWall. Securing your academic journey.
           </p>
         </div>
       </div>

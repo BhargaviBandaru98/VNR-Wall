@@ -21,169 +21,34 @@ function parseEvidence(raw) {
       fakeReason = fakeReason ? fakeReason + ' | ' + p : p;
     }
   });
-  // fallback: whole string as fakeReason if nothing parsed
+  // fallback: whole string as scamReason if nothing parsed
   if (!fakeReason && !genuineReason) fakeReason = raw.substring(0, 200);
-  return { fakeReason, genuineReason, path };
+  return { scamReason: fakeReason, genuineReason, path };
 }
 
-/* ────────────────────────────────────────────────────────
-   AI Detail Modal
-──────────────────────────────────────────────────────── */
-const AIDetailModal = ({ data, onClose }) => {
-  // Prevent background scroll while modal is open
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  const fakeScore = data.aiScore ?? null;
-  const genuineScore = fakeScore !== null ? Math.max(0, 100 - fakeScore) : null;
-  const aiResult = data.aiResult;
-  const confidence = data.aiConfidence;
-  const { fakeReason, genuineReason, path } = parseEvidence(data.aiEvidence);
-
-  // Determine which verdict to show FIRST (real first if it dominates)
-  const isGenuineDominant = fakeScore !== null && genuineScore !== null && genuineScore > fakeScore;
-
-  const genuinePercent = genuineScore;
-  const fakePercent = fakeScore;
-
-  const genuineColor = '#10b981';
-  const fakeColor = '#ef4444';
-
-  return (
-    <div className="modal-overlay" onClick={e => { e.stopPropagation(); onClose(); }}>
-      <div className="modal-container" onClick={e => e.stopPropagation()}>
-        {/* Close */}
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          <X size={18} />
-        </button>
-
-        {/* Header */}
-        <div className="modal-header">
-          <div className="modal-title-row">
-            <span className="modal-category-badge">{data.category}</span>
-            <span className="modal-date">📅 {data.receivedDate}</span>
-          </div>
-          <div className="modal-sender-row">
-            <span className="modal-label">Sender:</span>
-            <span className="modal-value">{data.sender}</span>
-            &nbsp;·&nbsp;
-            <span className="modal-label">Platform:</span>
-            <span className="modal-value">{data.platform}</span>
-          </div>
-        </div>
-
-        {/* Not Available */}
-        {fakeScore === null && (
-          <div className="modal-no-ai">
-            <span>⏳ Verification analysis not yet run for this submission.</span>
-          </div>
-        )}
-
-        {/* Verdict Block */}
-        {fakeScore !== null && (
-          <div className="modal-ai-section">
-            <h3 className="modal-section-heading">🔍 Verification Analysis</h3>
-
-            {/* Show Real first if dominant, else Fake first */}
-            {[
-              isGenuineDominant ? 'genuine' : 'fake',
-              isGenuineDominant ? 'fake' : 'genuine',
-            ].map(type => {
-              const isGenuine = type === 'genuine';
-              const pct = isGenuine ? genuinePercent : fakePercent;
-              const color = isGenuine ? genuineColor : fakeColor;
-              const label = isGenuine ? '✅ Genuine / Real' : '🚨 Fake / Suspicious';
-              const reason = isGenuine ? (genuineReason || 'No specific genuine indicators found.') : (fakeReason || 'No specific fake indicators found.');
-              const isPrimary = (isGenuine && isGenuineDominant) || (!isGenuine && !isGenuineDominant);
-
-              return (
-                <div key={type} className={`modal-score-block ${isPrimary ? 'primary' : 'secondary'}`}>
-                  <div className="modal-score-header">
-                    <span className="modal-score-label" style={{ color }}>{label}</span>
-                    <span className="modal-score-pct" style={{ color }}>{pct}%</span>
-                  </div>
-                  <div className="modal-progress-bar-bg">
-                    <div
-                      className="modal-progress-bar-fill"
-                      style={{ width: `${pct}%`, background: color }}
-                    />
-                  </div>
-                  <p className="modal-score-reason" style={{ color: isGenuine ? genuineColor : fakeColor, fontWeight: isPrimary ? '600' : '400' }}>
-                    {reason}
-                  </p>
-                </div>
-              );
-            })}
-
-            {/* Confidence + Path */}
-            <div className="modal-meta-row">
-              <span className="modal-meta-chip" style={{
-                background: confidence === 'HIGH' ? 'rgba(16,185,129,0.12)' : confidence === 'MEDIUM' ? 'rgba(234,179,8,0.12)' : 'rgba(107,114,128,0.12)',
-                color: confidence === 'HIGH' ? '#059669' : confidence === 'MEDIUM' ? '#b45309' : '#6b7280',
-              }}>
-                Confidence: {confidence || '—'}
-              </span>
-              {aiResult && (
-                <span className={`modal-meta-chip ${aiResult === 'REAL' ? 'chip-real' : aiResult === 'FAKE' ? 'chip-fake' : 'chip-neutral'}`}>
-                  System Verdict: {aiResult === 'REAL' ? 'GENUINE' : aiResult}
-                </span>
-              )}
-            </div>
-
-            {path && (
-              <div className="modal-path">
-                <span className="modal-label">Verification Journey:</span>
-                <span className="modal-path-text">{path}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Full Message */}
-        <div className="modal-message-section">
-          <h3 className="modal-section-heading">💬 Full Message</h3>
-          <div className="modal-message-body">{data.messageContent}</div>
-        </div>
-
-        {/* Extra Details */}
-        <div className="modal-details-grid">
-          <div className="modal-detail-item">
-            <span className="modal-label">Branch</span>
-            <span className="modal-value">{data.branch}</span>
-          </div>
-          <div className="modal-detail-item">
-            <span className="modal-label">Year</span>
-            <span className="modal-value">{data.year}</span>
-          </div>
-          <div className="modal-detail-item">
-            <span className="modal-label">Responded</span>
-            <span className="modal-value">{data.responseStatus}</span>
-          </div>
-          <div className="modal-detail-item">
-            <span className="modal-label">Personal Details Shared</span>
-            <span className="modal-value">{data.personalDetails}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import DiagnosticModal from './DiagnosticModal';
 
 /* ────────────────────────────────────────────────────────
-   Main Card
-──────────────────────────────────────────────────────── */
+   Student Message Card
+   ──────────────────────────────────────────────────────── */
 const StudentMessageCard = ({ data, onStatusUpdate }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const { user } = useAuth();
-  const isAdmin = user?.isAdmin || false;
+
+  const isScam = data.status?.toLowerCase() === 'scam' || data.ai_result?.toLowerCase() === 'fake';
+  const isGenuine = data.status?.toLowerCase() === 'genuine' || data.ai_result?.toLowerCase() === 'real';
+
+  const getStatusBadge = () => {
+    if (isScam) return <span className="badge badge-scam">🚨 SCAM</span>;
+    if (isGenuine) return <span className="badge badge-genuine">✅ GENUINE</span>;
+    return <span className="badge badge-review">⏳ UNDER REVIEW</span>;
+  };
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'inreview': return 'status-inreview';
       case 'genuine': return 'status-genuine';
+      case 'scam': return 'status-fake';
       case 'fake': return 'status-fake';
       default: return 'status-default';
     }
@@ -211,14 +76,16 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
     if (onStatusUpdate) onStatusUpdate(data.id, newStatus);
   };
 
-  const hasAI = data.aiChecked && data.aiScore !== null;
+  const hasAI = data.aiChecked && data.scamScore !== null;
 
   return (
     <>
-      {/* ── Modal ── */}
-      {showModal && (
-        <AIDetailModal data={data} onClose={() => setShowModal(false)} />
-      )}
+      {/* Modal Integration */}
+      <DiagnosticModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        data={data}
+      />
 
       {/* ── Card ── */}
       <div
@@ -259,12 +126,12 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
                     Genuine
                   </button>
                   <button
-                    onClick={() => handleStatusChange('fake')}
-                    className={`admin-btn fake-btn ${data.status.toLowerCase() === 'fake' ? 'active' : ''}`}
-                    title="Mark as Fake"
+                    onClick={() => handleStatusChange('scam')}
+                    className={`admin-btn fake-btn ${data.status?.toLowerCase() === 'scam' || data.status?.toLowerCase() === 'fake' ? 'active' : ''}`}
+                    title="Mark as Scam"
                   >
                     <Shield size={14} />
-                    Fake
+                    Scam
                   </button>
                 </div>
               </div>
@@ -280,10 +147,10 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
         {hasAI && (
           <div className="card-ai-strip">
             <span className="ai-strip-fake">
-              🚨 {data.aiScore}% Fake
+              🚨 {data.scamScore}% Scam
             </span>
             <span className="ai-strip-genuine">
-              ✅ {Math.max(0, 100 - data.aiScore)}% Real
+              ✅ {Math.max(0, 100 - data.scamScore)}% Real
             </span>
             <span className="ai-strip-conf">{data.aiConfidence} confidence</span>
           </div>

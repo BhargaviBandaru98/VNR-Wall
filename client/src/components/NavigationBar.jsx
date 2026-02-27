@@ -3,18 +3,17 @@ import { Link } from "react-router-dom";
 import './Navi.css';
 import logo from '../assets/logo2.jpeg';
 import '../styles/Navbar.css';
-import { FaHome, FaEnvelopeOpenText, FaListAlt, FaUser } from 'react-icons/fa';
+import { FaHome, FaEnvelopeOpenText, FaListAlt, FaUser, FaChartBar } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 function NavigationBar() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
   const [isMobile, setIsMobile] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const navRef = useRef(null);
 
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    setIsLoggedIn(!!user);
-
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 1024);
     };
@@ -62,7 +61,7 @@ function NavigationBar() {
   return (
     <div className="navbar navbar-expand-md p-2">
       <Link className="navbar-brand mx-md-4" to="">
-        <img src={logo} alt="VNR Wall Logo" className="logo" />
+        <img src={logo} alt="VerifyWall Logo" className="logo" />
       </Link>
 
       <button
@@ -93,6 +92,13 @@ function NavigationBar() {
               <FaListAlt className="nav-icon" /> View Responses
             </Link>
           </li>
+          {user?.isAdmin && (
+            <li className="nav-item">
+              <Link className="nav-link" to="admin/analytics">
+                <FaChartBar className="nav-icon" /> Analytics
+              </Link>
+            </li>
+          )}
           <li className="nav-item">
             <Link className="nav" to="login">
               <button className="btn btn-primary px-3 mx-2">

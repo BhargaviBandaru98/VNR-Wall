@@ -7,6 +7,8 @@ import HomePage from './pages/HomePage';
 import SubmitPage from './pages/SubmitPage';
 import ViewResponsesPage from './pages/ViewResponsePage.jsx';
 import Login from './pages/Login';
+
+import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 import NavigationBar from './components/NavigationBar';
 import './styles/theme.css';
@@ -80,35 +82,45 @@ function App() {
           <Routes>
             {/* Public route */}
             <Route path="/login" element={<Login />} />
-            
+
             {/* Protected routes - require login */}
-            <Route 
-              path="/" 
+            <Route
+              path="/"
               element={
                 <ProtectedRoute>
                   <HomePage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            <Route 
-              path="/submit" 
+            <Route
+              path="/submit"
               element={
                 <ProtectedRoute>
                   <SubmitPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
+
             {/* ✅ FIXED: View Responses accessible to ALL logged-in users */}
-            <Route 
-              path="/responses" 
+            <Route
+              path="/responses"
               element={
                 <ProtectedRoute>
                   <ViewResponsesPage />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
+
+
+            <Route
+              path="/admin/analytics"
+              element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

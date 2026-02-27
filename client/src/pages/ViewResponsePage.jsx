@@ -198,7 +198,7 @@ const ViewResponses = () => {
           category: item.category || 'Not specified',
           receivedDate: item.dateReceived || 'N/A',
           status: item.status === 'null' || item.status === null ? 'inreview'
-            : item.status?.toLowerCase() === 'fake' ? 'fake'
+            : item.status?.toLowerCase() === 'scam' ? 'scam'
               : item.status?.toLowerCase() === 'genuine' ? 'genuine'
                 : 'inreview',
           branch: item.branch || 'N/A',
@@ -211,9 +211,9 @@ const ViewResponses = () => {
           credibilityRating: parseInt(item.genuineRating) || 0,
           messageContent: item.message || '',
           tags: item.flags ? JSON.parse(item.flags) : [],
-          submittedByUser: false,
+          submittedByUser: item.user_email === user?.email,
           // AI Verification fields
-          aiScore: item.ai_score ?? null,
+          scamScore: item.ai_score ?? null,
           aiResult: item.ai_result ?? null,
           aiConfidence: item.ai_confidence ?? null,
           aiEvidence: item.ai_evidence ?? null,
@@ -268,7 +268,7 @@ const ViewResponses = () => {
     messages.forEach(msg => {
       if (msg.submittedByUser) counts.submitted++;
       switch (msg.status.toLowerCase()) {
-        case 'fake':
+        case 'scam':
           counts.fake++;
           break;
         case 'genuine':
@@ -297,9 +297,9 @@ const ViewResponses = () => {
       description: 'All message types'
     },
     {
-      id: 'fake',
-      title: 'Fake Messages',
-      shortTitle: 'Fake',
+      id: 'scam',
+      title: 'Scam Messages',
+      shortTitle: 'Scam',
       count: counts.fake,
       icon: <Shield className="category-icon" />,
       color: 'red',

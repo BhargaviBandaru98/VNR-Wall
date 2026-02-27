@@ -18,10 +18,10 @@ const groq = new Groq({ apiKey });
  * @param {string} [pageContent]  - Firecrawl scraped content
  * @param {Array}  [officialLinks] - [{title, link}] from Serper
  */
-async function verifyMessageWithAI(text, pageContent = '', officialLinks = []) {
+async function verifyMessageWithAI(text, pageContent = '', officialLinks = [], personalDetails = '', dateReceived = '') {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return {
-            fake_score: 50, genuine_score: 50,
+            scam_score: 50, genuine_score: 50,
             result: 'UNKNOWN', confidence: 'LOW',
             evidence: 'No message text provided.',
             genuine_evidence: 'No message text provided.'
@@ -51,7 +51,7 @@ async function verifyMessageWithAI(text, pageContent = '', officialLinks = []) {
         : '';
 
     const prompt = `
-You are a Lead Fraud Intelligence Analyst. Your mission is to protect university students from predatory recruitment scams by analyzing available data through the 11-step Fraud Intelligence Framework.
+You are a Lead Fraud Intelligence Analyst. Your mission is to protect university students from predatory recruitment SCAMS by analyzing available data through the 11-step Fraud Intelligence Framework.
 
 --- INVESTIGATIVE DATA ---
 ${hasPageContent ? `LIVE PAGE CONTENT (Firecrawl):
@@ -64,28 +64,32 @@ ORIGINAL MESSAGE:
 ${text.substring(0, 1200)}
 ---
 
+${personalDetails ? `USER SHARED PERSONAL DETAILS: The user explicitly stated they shared: "${personalDetails}"` : ''}
+${dateReceived ? `MESSAGE RECEIVED DATE: The user received this opportunity on ${dateReceived}` : ''}
 ${domainMatchInfo ? `DOMAIN ANALYSIS: ${domainMatchInfo}` : ''}
 
 --- INTELLIGENCE RULES ---
-1. TRUST HIERARCHY (CRITICAL): Verified official portals (e.g., careers.google.com, joinwipro.com) found via Serper/Firecrawl are the HIGHEST trust signal. If the message link matches an official domain, reduce fake_score significantly.
+1. TRUST HIERARCHY (CRITICAL): Verified official portals (e.g., careers.google.com, joinwipro.com) found via Serper/Firecrawl are the HIGHEST trust signal. If the message link matches an official domain, reduce scam_score significantly.
 2. PSYCHOLOGICAL MANIPULATION: Detect FOMO, extreme urgency (e.g., "Last 1 hour," "Limited spots"), and emotional pressure.
-3. IDENTITY & DATA RISK: Flag any request for Government IDs (Aadhaar, PAN), Bank Details, or OTPs without a known corporate portal context.
+3. IDENTITY & DATA RISK: Flag any request for Government IDs (Aadhaar, PAN), Bank Details, or OTPs. IMPORTANT: IF THE USER EXPLICITLY SHARED SENSITIVE DATA (Bank, SSN, Credentials) IN THE "USER SHARED PERSONAL DETAILS" SECTION, YOU MUST ENFORCE risk_level: "CRITICAL".
 4. FINANCIAL RISK: Detect "Registration Fees," "Security Deposits," "Nominal Training Fees," or UPI-only payment requests for employment.
 5. ENTITY & BRAND TRUST: Validate brand partnership claims (e.g., "Wipro Hiring") against official Serper data. Flag mismatches.
 6. COMMUNICATION ANALYSIS: Flag the use of personal Gmail/Yahoo/Hotmail accounts for official corporate offers.
 7. PLATFORM ANOMALY: Flag hiring processes restricted solely to WhatsApp, Telegram, or Google Forms if the company is an MNC.
+8. EXPIRY ANALYSIS: Compare the "MESSAGE RECEIVED DATE" with any deadlines, dates, or expired offers found in the content or web searches. If the opportunity is realistically expired or the date is ancient compared to the timeline of the post, return is_expired: true.
 
 --- SCORING & OUTPUT ---
-- Simultaneously compute BOTH a fake_score AND a genuine_score (0-100).
-- If Financial Red Flags or Data Exploitation are detected, risk_level MUST be 'High' or 'Critical' and fake_score >= 90.
+- Simultaneously compute BOTH a scam_score AND a genuine_score (0-100).
+- If Financial Red Flags or Data Exploitation are detected, risk_level MUST be 'High' or 'Critical' and scam_score >= 90.
 
 Return ONLY valid JSON:
 {
-  "fake_score": <0-100>,
+  "scam_score": <0-100>,
   "genuine_score": <0-100>,
   "risk_level": "Low" | "Medium" | "High" | "Critical",
-  "result": "FAKE" | "REAL",
+  "result": "SCAM" | "GENUINE",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
+  "is_expired": true | false,
   "ai_evidence": "Detailed technical and forensic proof of risk indicators.",
   "genuine_evidence": "Forensic proof of authenticity (e.g., domain match, verified portal).",
   "protective_guidance": [
@@ -111,15 +115,16 @@ Return ONLY valid JSON:
         console.log('AI PARSED RESULT:', parsed);
 
         // Map risk_level to results for internal logic compatibility
-        const isHighRisk = parsed.risk_level === 'High' || parsed.risk_level === 'Critical' || parsed.fake_score >= 80;
-        const mappedResult = isHighRisk ? 'FAKE' : (parsed.result || 'REAL');
+        const isHighRisk = parsed.risk_level === 'High' || parsed.risk_level === 'Critical' || parsed.scam_score >= 80;
+        const mappedResult = isHighRisk ? 'SCAM' : (parsed.result || 'GENUINE');
 
         return {
-            fake_score: typeof parsed.fake_score === 'number' ? parsed.fake_score : 50,
+            scam_score: typeof parsed.scam_score === 'number' ? parsed.scam_score : 50,
             genuine_score: typeof parsed.genuine_score === 'number' ? parsed.genuine_score : 0,
             risk_level: typeof parsed.risk_level === 'string' ? parsed.risk_level : 'Medium',
             result: mappedResult.toUpperCase(),
             confidence: typeof parsed.confidence === 'string' ? parsed.confidence.toUpperCase() : 'LOW',
+            is_expired: !!parsed.is_expired,
             evidence: typeof parsed.ai_evidence === 'string' ? parsed.ai_evidence : 'No technical evidence provided.',
             genuine_evidence: typeof parsed.genuine_evidence === 'string' ? parsed.genuine_evidence : 'No genuine indicators found.',
             protective_guidance: Array.isArray(parsed.protective_guidance) ? parsed.protective_guidance : []
@@ -128,7 +133,7 @@ Return ONLY valid JSON:
     } catch (error) {
         console.error('[aiVerificationService] Groq call failed:', error.message);
         return {
-            fake_score: 50, genuine_score: 0,
+            scam_score: 50, genuine_score: 0,
             risk_level: 'High',
             result: 'SUSPICIOUS', confidence: 'LOW',
             evidence: 'AI analysis system failure — manual verification required.',

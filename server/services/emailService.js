@@ -107,6 +107,78 @@ async function sendAdminAlert(submissionData, aiResult, investigationPath) {
 }
 
 /**
+ * Sends a notification email to the user with their verification results.
+ * @param {string} userEmail
+ * @param {object} datacheckRow
+ */
+async function sendUserNotification(userEmail, datacheckRow) {
+    const t = getTransporter();
+    if (!t || !userEmail) {
+        console.warn('[emailService] Skipping user notification — transporter not configured or missing email.');
+        return;
+    }
+
+    const { id, status, ai_score, ai_result, ai_confidence, ai_evidence, genuine_evidence, risk_level, protective_guidance } = datacheckRow;
+
+    const isScam = status === 'Scam';
+    const verdictColor = isScam ? '#c0392b' : '#27ae60';
+    const verdictTitle = isScam ? '⚠️ Scam Detected' : '✅ Verified as Genuine';
+    const guidanceObj = protective_guidance ? JSON.parse(protective_guidance) : [];
+    const guidanceHtml = (isScam && risk_level === 'CRITICAL' && guidanceObj.length > 0)
+        ? `<div style="background:#fff3cd; color:#856404; padding:12px; border-left:4px solid #ffeeba; margin-top:16px;">
+                              <h4 style="margin:0 0 8px;">🛡️ Immediate Rescue Steps:</h4>
+                              <ul style="margin:0; padding-left:20px;">
+                                ${guidanceObj.map(g => `<li>${g}</li>`).join('')}
+                              </ul>
+                            </div>`
+        : '';
+
+    const subject = `Your VerifyWall Result is Ready: ${isScam ? 'Scam Detected' : 'Verified Genuine'}`;
+
+    const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
+  <div style="background:${verdictColor};padding:18px 24px;">
+    <h2 style="color:#fff;margin:0;">Investigation Complete</h2>
+    <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;">VerifyWall Verification System</p>
+  </div>
+  <div style="padding:24px;">
+    
+    <h3 style="color:${verdictColor};margin:0 0 10px;">${verdictTitle}</h3>
+    <p style="font-size:14px;color:#555;line-height:1.5;">Your submitted message (ID: #${id}) has been fully verified.</p>
+    
+    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:16px;background:#f9f9f9;border-radius:8px;">
+      <tr><td style="padding:12px;border-bottom:1px solid #eee;color:#333;"><b>Risk Score:</b></td><td style="padding:12px;border-bottom:1px solid #eee;color:${verdictColor};font-weight:bold;">${ai_score}%</td></tr>
+      <tr><td style="padding:12px;border-bottom:1px solid #eee;color:#333;"><b>AI Analysis:</b></td><td style="padding:12px;border-bottom:1px solid #eee;color:#555;">${ai_result} (${ai_confidence} Confidence)</td></tr>
+    </table>
+    
+    <div style="font-size:13px;color:#444;background:#f1f5f9;padding:12px;border-radius:6px;margin-bottom:16px;">
+      <b>Forensic Evidence:</b><br/>${isScam ? ai_evidence : genuine_evidence}
+    </div>
+
+    ${guidanceHtml}
+    
+    <div style="text-align:center;margin-top:24px;">
+      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/responses" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">View Details & Dashboard</a>
+    </div>
+    
+  </div>
+</div>
+`;
+
+    try {
+        await t.sendMail({
+            from: `"VerifyWall Alerts" <${EMAIL_USER}>`,
+            to: userEmail,
+            subject,
+            html,
+        });
+        console.log('[emailService] ✅ User notification sent to:', userEmail);
+    } catch (err) {
+        console.error('[emailService] ❌ Failed to send user notification to:', userEmail, '—', err.message);
+    }
+}
+
+/**
  * Verify SMTP connection at startup.
  */
 async function verifyConnection() {
@@ -122,4 +194,4 @@ async function verifyConnection() {
     }
 }
 
-module.exports = { sendAdminAlert, verifyConnection };
+module.exports = { sendAdminAlert, sendUserNotification, verifyConnection };

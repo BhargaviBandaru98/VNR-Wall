@@ -16,6 +16,17 @@ export const AuthProvider = ({ children }) => {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
+
+        // Refresh profile status from DB
+        fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105'}/api/users/${parsedUser.email}`)
+          .then(res => res.json())
+          .then(dbUser => {
+            if (dbUser) {
+              const updatedUser = { ...parsedUser, ...dbUser };
+              setUser(updatedUser);
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+            }
+          });
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('user');
@@ -24,28 +35,51 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (userData) => {
+  const login = async (userData) => {
     const email = userData.email.toLowerCase();
-
-    // ✅ UPDATED: Check if user is admin first
     const isAdmin = ADMIN_EMAILS.includes(email);
 
-    // ✅ UPDATED: Only check college email for non-admin users
-    if (!isAdmin && !email.endsWith('@vnrvjiet.in')) {
-      throw new Error('Access restricted to VNRVJIET students only.');
+    try {
+      // Retrieve pending profile data from Phase 8b integrated login flow
+      const pendingProfileStr = sessionStorage.getItem('pendingProfile');
+      let extendedProfileData = { email, name: userData.name };
+
+      if (pendingProfileStr) {
+        extendedProfileData = { ...extendedProfileData, ...JSON.parse(pendingProfileStr) };
+      }
+
+      // Sync with backend
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105'}/api/users/upsert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(extendedProfileData)
+      });
+      const upsertResult = await res.json();
+
+      // Get full profile
+      const profileRes = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105'}/api/users/${email}`);
+      const dbProfile = await profileRes.json();
+
+      const userWithRole = {
+        ...userData,
+        ...dbProfile,
+        email: email,
+        isAdmin: isAdmin,
+        role: isAdmin ? 'admin' : 'student',
+        isProfileComplete: dbProfile?.is_profile_complete === 1
+      };
+
+      setUser(userWithRole);
+      localStorage.setItem('user', JSON.stringify(userWithRole));
+
+      // Clear pending profile from session storage after successful login
+      sessionStorage.removeItem('pendingProfile');
+
+      return userWithRole;
+    } catch (err) {
+      console.error('Auth sync failed:', err);
+      throw new Error('Failed to synchronize user profile.');
     }
-
-    const userWithRole = {
-      ...userData,
-      email: email,
-      isAdmin: isAdmin,
-      role: isAdmin ? 'admin' : 'student'
-    };
-
-    setUser(userWithRole);
-    localStorage.setItem('user', JSON.stringify(userWithRole));
-
-    return userWithRole;
   };
 
   const logout = () => {
@@ -53,17 +87,25 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
+  const updateProfile = (profileData) => {
+    const updatedUser = { ...user, ...profileData, isProfileComplete: true };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   const isCollegeEmail = (email) => {
-    return email.toLowerCase().endsWith('@vnrvjiet.in');
+    return email?.toLowerCase().endsWith('@vnrvjiet.in');
   };
 
   const value = {
     user,
     login,
     logout,
+    updateProfile,
     loading,
     isAuthenticated: !!user,
     isAdmin: user?.isAdmin || false,
+    isProfileComplete: user?.isProfileComplete || false,
     isCollegeEmail
   };
 

@@ -3,72 +3,119 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/SubmitPage.css';
 import axios from 'axios';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 import 'flatpickr/dist/flatpickr.min.css';
+import DiagnosticModal from '../components/DiagnosticModal';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const SubmitPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [pulseText, setPulseText] = useState("Analyzing Scammer Tactics...");
+  const [showModal, setShowModal] = useState(false);
+  const [resultData, setResultData] = useState(null);
 
-  // Form state
   const [formData, setFormData] = useState({
     name: user?.name || '',
-    roll: '',
-    branch: '',
-    year: '',
+    roll: user?.roll || '',
+    branch: user?.branch || '',
+    year: user?.year_of_study || '',
+    userEmail: user?.email || '',
     dateReceived: '',
-    platform: '',
-    sender: '',
-    contact: '',
-    category: '',
-    flags: [],
-    responded: '',
     personalDetails: '',
-    genuineRating: '',
-    message: ''
+    responded: 'No',
+    responseDetails: '',
+    message: '',
+    send_email_notification: false
   });
 
-  // Handle input changes
+  const pulseMessages = [
+    "Analyzing Scammer Tactics...",
+    "Scanning Fraud Databases...",
+    "Verifying Company Metadata...",
+    "Cross-referencing Official Portals...",
+    "Calculating Risk Vector..."
+  ];
+
+  useEffect(() => {
+    let interval;
+    if (isVerifying) {
+      let i = 0;
+      interval = setInterval(() => {
+        i = (i + 1) % pulseMessages.length;
+        setPulseText(pulseMessages[i]);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isVerifying]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    if (type === 'checkbox') {
-      if (checked) {
-        setFormData({
-          ...formData,
-          flags: [...formData.flags, value]
-        });
-      } else {
-        setFormData({
-          ...formData,
-          flags: formData.flags.filter(flag => flag !== value)
-        });
-      }
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
-    }
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
   };
 
-  // Handle form submission
-  const handleSubmit = async(e) => {
+  const pollResult = async (id) => {
+    const maxAttempts = 15;
+    let attempts = 0;
+
+    const check = async () => {
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/datas/${id}`);
+        if (res.data.ai_checked === 1) {
+          setResultData(res.data);
+          setIsVerifying(false);
+          setShowModal(true);
+          return true;
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+      return false;
+    };
+
+    const interval = setInterval(async () => {
+      attempts++;
+      const done = await check();
+      if (done || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (!done) {
+          setIsVerifying(false);
+          alert("Verification is taking longer than usual. Check 'Your Messages' in few minutes.");
+          navigate('/');
+        }
+      }
+    }, 2000);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setIsVerifying(true);
+
     try {
-      let res = await axios.post(`${BACKEND_URL}/api/user-check-data`, formData);
-      if (res.data.success === true) {
-        alert("Data saved successfully! Your submission is under review.");
-        navigate('/');
+      const res = await axios.post(`${BACKEND_URL}/api/user-check-data`, {
+        ...formData,
+        platform: 'N/A',
+        sender: 'N/A',
+        contact: 'N/A',
+        category: 'N/A',
+        flags: [],
+        genuineRating: '3'
+      });
+
+      if (res.data.success) {
+        pollResult(res.data.id);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert("Failed to submit data. Please try again.");
+      alert("Submission Failed. Please try again.");
+      setIsVerifying(false);
     }
   };
 
-  // Initialize flatpickr for date input
   useEffect(() => {
     if (typeof window !== 'undefined') {
       import('flatpickr').then(({ default: flatpickr }) => {
@@ -79,10 +126,7 @@ const SubmitPage = () => {
           allowInput: true,
           disableMobile: true,
           onChange: (selectedDates, dateStr) => {
-            setFormData(prev => ({
-              ...prev,
-              dateReceived: dateStr
-            }));
+            setFormData(prev => ({ ...prev, dateReceived: dateStr }));
           }
         });
       });
@@ -90,342 +134,125 @@ const SubmitPage = () => {
   }, []);
 
   return (
-    <main className="form-container">
+    <main className="form-container diagnostic-view">
       <div className="form-header">
-        <h2>Submit Info for Verification</h2>
+        <h2>SCAM Investigation</h2>
+        <p>Instant Diagnostic & Forensic Analysis</p>
         <div className="header-line"></div>
       </div>
-      <form id="infoForm" onSubmit={handleSubmit}>
-        {/* Student Details */}
+
+      <form onSubmit={handleSubmit} className={isVerifying ? 'verifying-fade' : ''}>
         <div className="form-section">
-          <h3>Academic Information</h3>
-          
+          <h3>Primary Evidence</h3>
+
           <div className="input-group">
-            <label htmlFor="name">Name:</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
+            <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
+            <textarea
+              id="message"
+              name="message"
+              rows="8"
+              placeholder="Paste the suspicious content here..."
+              value={formData.message}
               onChange={handleChange}
-              placeholder="Enter your full name"
               required
             />
           </div>
 
-          <div className="input-group">
-            <label htmlFor="roll">Roll Number:</label>
-            <input
-              type="text"
-              id="roll"
-              name="roll"
-              value={formData.roll}
-              onChange={handleChange}
-              placeholder="Enter your roll number"
-              required
-            />
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="branch">Branch:</label>
-            <select 
-              id="branch" 
-              name="branch" 
-              value={formData.branch}
-              onChange={handleChange}
-              required
-            >  
-              <option value="" disabled>Select your branch</option>
-              <option>CSE</option>
-              <option>CS - AIML</option>
-              <option>CS - DS</option>
-              <option>CS - IOT</option>
-              <option>CS - CYS</option>
-              <option>AI & DS</option>
-              <option>CSBS</option>
-              <option>IT</option>
-              <option>ECE</option>
-              <option>EEE</option>
-              <option>EIE</option>
-              <option>CE</option>
-              <option>ME</option>
-              <option>AE</option>
-            </select>
-          </div>
-
-          <div className="input-group">
-            <label>Year of Study:</label>
-            <div className="radio-group">
-              {['1st Year', '2nd Year', '3rd Year', '4th Year'].map(year => (
-                <label key={year} className="radio-label">
-                  <input 
-                    type="radio" 
-                    name="year" 
-                    value={year} 
-                    checked={formData.year === year}
-                    onChange={handleChange}
-                    required
-                  />
-                  <span className="radio-custom"></span>
-                  {year}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Message Details */}
-        <div className="form-section">
-          <h3>Message Information</h3>
-          
-          <div className="input-group">
-            <label htmlFor="dateReceived">When was the message received?</label>
-            <input
-              type="text"
-              id="dateReceived"
-              name="dateReceived"
-              placeholder="dd-mm-yyyy"
-              value={formData.dateReceived}
-              onChange={handleChange}
-              maxLength="10"
-              required
-            />
-            <small id="dateError" style={{ color: 'red', display: 'none' }}>
-              Please enter a valid date.
-            </small>
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="platform">Where was the message?</label>
-            <select
-              id="platform"
-              name="platform"
-              value={formData.platform}
-              onChange={handleChange}
-              required
-            >
-              <option value="" disabled>Select platform</option>
-              <option value="Class Unofficial Group">Class Unofficial Group</option>
-              <option value="Class Official Group">Class Official Group</option>
-              <option value="College Mail">College Mail</option>
-              <option value="Personal Mail">Personal Mail</option>
-              <option value="LinkedIn">LinkedIn</option>
-              <option value="WhatsApp Message">WhatsApp Message</option>
-              <option value="Call">Call</option>
-              <option value="Other">Other</option>
-            </select>
-            {formData.platform === 'Other' && (
+          <div className="form-row" style={{ display: 'flex', gap: '2rem' }}>
+            <div className="input-group" style={{ flex: 1 }}>
+              <label htmlFor="dateReceived">Date Received:</label>
               <input
                 type="text"
-                name="platformOther"
-                className="other-input"
-                placeholder="Please specify..."
-                value={formData.platformOther || ''}
-                onChange={e => setFormData({
-                  ...formData,
-                  platformOther: e.target.value
-                })}
+                id="dateReceived"
+                name="dateReceived"
+                placeholder="dd-mm-yyyy"
+                value={formData.dateReceived}
                 required
               />
-            )}
-          </div>
+            </div>
 
-          <div className="input-group">
-            <label htmlFor="sender">Who sent you this message (Company/Individual):</label>
-            <input 
-              type="text" 
-              id="sender" 
-              name="sender" 
-              placeholder="Enter name" 
-              value={formData.sender}
-              onChange={handleChange}
-              required 
-            />
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="contact">Contact information of sender (Phone/Mail/LinkedIn):</label>
-            <input 
-              type="text" 
-              id="contact" 
-              name="contact" 
-              placeholder="Enter contact info" 
-              value={formData.contact}
-              onChange={handleChange}
-              required 
-            />
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="category">What is the category of message?</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              required
-            >
-              <option value="" disabled>Select category</option>
-              <option value="Internship">Internship</option>
-              <option value="Placement">Placement</option>
-              <option value="Training">Training</option>
-              <option value="Training and Internship">Training and Internship</option>
-              <option value="Certificate Course">Certificate Course</option>
-              <option value="Exam Drive">Exam Drive</option>
-              <option value="Scholarship">Scholarship</option>
-              <option value="Other">Other</option>
-            </select>
-            {formData.category === 'Other' && (
-              <input
-                type="text"
-                name="categoryOther"
-                className="other-input"
-                placeholder="Please specify..."
-                value={formData.categoryOther || ''}
-                onChange={e => setFormData({
-                  ...formData,
-                  categoryOther: e.target.value
-                })}
+            <div className="input-group" style={{ flex: 1 }}>
+              <label>Personal Details Shared?</label>
+              <select
+                name="personalDetails"
+                value={formData.personalDetails}
+                onChange={handleChange}
                 required
+              >
+                <option value="">Select Option</option>
+                <option value="No">No</option>
+                <option value="Yes">Yes (Full Details)</option>
+                <option value="Mention">Mentioned Only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Conditional Response Field */}
+          {(formData.personalDetails === 'Yes' || formData.personalDetails === 'Mention') && (
+            <div className="input-group slide-in">
+              <label htmlFor="responseDetails">Describe what details were shared:</label>
+              <textarea
+                name="responseDetails"
+                id="responseDetails"
+                rows="3"
+                placeholder="e.g. Aadhaar, OTP, Payment made..."
+                value={formData.responseDetails}
+                onChange={handleChange}
+                className="animated-slide"
               />
-            )}
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3>Message Analysis</h3>
-          
-          <div className="input-group">
-            <label>Did the message have any of the following elements?</label>
-            <div className="checkbox-group">
-              {[
-                'Asking for payment/fee',
-                'Requesting banking details or Aadhar/PAN',
-                'Unreasonable deadlines',
-                'Urgent response needed',
-                'Poor grammar/spelling',
-                'Unknown or verified sender',
-                'Refused to give further info',
-                'Fake LinkedIn or website',
-                'Unofficial company information',
-                'Other'
-              ].map(flag => (
-                <label key={flag} className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    name="flags" 
-                    value={flag} 
-                    checked={formData.flags.includes(flag)}
-                    onChange={handleChange}
-                  />
-                  <span className="checkbox-custom"></span>
-                  {flag}
-                  {flag === 'Other' && formData.flags.includes('Other') && (
-                    <input 
-                      type="text" 
-                      name="flagOther" 
-                      className="other-input"
-                      placeholder="Please specify..."
-                      onChange={handleChange}
-                    />
-                  )}
-                </label>
-              ))}
             </div>
-          </div>
-              
-          <div className="input-group">
-            <label>Have you responded to the opportunity?</label>
-            <div className="radio-group">
-              {['Yes', 'No', 'Considering'].map(responded => (
-                <label key={responded} className="radio-label">
-                  <input 
-                    type="radio" 
-                    name="responded" 
-                    value={responded} 
-                    checked={formData.responded === responded}
-                    onChange={handleChange}
-                    required
-                  />
-                  <span className="radio-custom"></span>
-                  {responded}
-                </label>
-              ))}
-            </div>
-          </div>
+          )}
 
-          <div className="input-group">
-            <label>Did they take any personal details?</label>
-            <div className="radio-group">
-              {['Yes', 'No', 'Only name and phone', 'Other'].map(detail => (
-                <label key={detail} className="radio-label">
-                  <input 
-                    type="radio" 
-                    name="personalDetails" 
-                    value={detail} 
-                    checked={formData.personalDetails === detail}
-                    onChange={handleChange}
-                    required
-                  />
-                  <span className="radio-custom"></span>
-                  {detail}
-                  {detail === 'Other' && formData.personalDetails === 'Other' && (
-                    <input 
-                      type="text" 
-                      name="personalDetailsOther" 
-                      className="other-input"
-                      placeholder="Please specify..."
-                      onChange={handleChange}
-                    />
-                  )}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="input-group">
-            <label>How genuine do you think the message is?</label>
-            <div className="rating-group">
-              {[1, 2, 3, 4, 5].map(rating => (
-                <label key={rating} className="rating-label">
-                  <input 
-                    type="radio" 
-                    name="genuineRating" 
-                    value={rating.toString()} 
-                    checked={formData.genuineRating === rating.toString()}
-                    onChange={handleChange}
-                    required
-              />
-              <span className="rating-number">{rating}</span>
+          {/* Email Notification Toggle */}
+          <div className="input-group slide-in" style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(37, 99, 235, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+            <input
+              type="checkbox"
+              id="send_email_notification"
+              name="send_email_notification"
+              checked={formData.send_email_notification}
+              onChange={handleChange}
+              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+            />
+            <label htmlFor="send_email_notification" style={{ margin: 0, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+              Send notification once verified via mail
             </label>
-          ))}
+          </div>
         </div>
-        <div className="rating-labels">
-          <span>Not Genuine</span>
-          <span>Very Genuine</span>
+
+        <button type="submit" className="submit-btn investigative-btn" disabled={isVerifying}>
+          {isVerifying ? (
+            <div className="safety-pulse">
+              <div className="pulse-spinner"></div>
+              <span>{pulseText}</span>
+            </div>
+          ) : (
+            <>
+              <span className="btn-icon">🔍</span>
+              <span>VERIFY NOW</span>
+            </>
+          )}
+          <div className="btn-ripple"></div>
+        </button>
+      </form>
+
+      {isVerifying && (
+        <div className="pulse-overlay">
+          <div className="pulse-scanner"></div>
         </div>
-      </div>
+      )}
 
-      <div className="input-group">
-        <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
-        <textarea 
-          id="message" 
-          name="message" 
-          rows="6" 
-          placeholder="Paste the full message here..." 
-          value={formData.message}
-          onChange={handleChange}
-          required
-        ></textarea>
-      </div>
-    </div>
-
-    <button type="submit" className="submit-btn"> 
-      <span>Submit Report</span>
-      <div className="btn-ripple"></div>
-    </button>
-  </form>
-</main>
-);
+      {resultData && (
+        <DiagnosticModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            navigate('/');
+          }}
+          data={resultData}
+        />
+      )}
+    </main>
+  );
 };
+
 export default SubmitPage;
