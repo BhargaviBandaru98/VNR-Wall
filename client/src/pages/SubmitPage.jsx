@@ -5,6 +5,7 @@ import '../styles/SubmitPage.css';
 import axios from 'axios';
 import 'flatpickr/dist/flatpickr.min.css';
 import DiagnosticModal from '../components/DiagnosticModal';
+import StudentMessageCard from '../components/StudentMessageCards';
 import { Shield } from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
@@ -18,14 +19,9 @@ const SubmitPage = () => {
   const [resultData, setResultData] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    roll: user?.roll || '',
-    branch: user?.branch || '',
-    year: user?.year_of_study || '',
     userEmail: user?.email || '',
     dateReceived: '',
     personalDetails: '',
-    responded: 'No',
     responseDetails: '',
     message: '',
     send_email_notification: false
@@ -36,7 +32,11 @@ const SubmitPage = () => {
     "Scanning Fraud Databases...",
     "Verifying Company Metadata...",
     "Cross-referencing Official Portals...",
-    "Calculating Risk Vector..."
+    "Calculating Risk Vector...",
+    "Deep Analysis in Progress... This might take up to a minute.",
+    "Running extended heuristic sweeps...",
+    "Connecting to advanced fraud registries...",
+    "Finalizing forensic diagnostic..."
   ];
 
   useEffect(() => {
@@ -60,7 +60,7 @@ const SubmitPage = () => {
   };
 
   const pollResult = async (id) => {
-    const maxAttempts = 15;
+    const maxAttempts = 60; // Increased to 120 seconds to accommodate deep Serper/Firecrawl searches
     let attempts = 0;
 
     const check = async () => {
@@ -81,12 +81,16 @@ const SubmitPage = () => {
     const interval = setInterval(async () => {
       attempts++;
       const done = await check();
+
+      // Dynamic psychological loading text at the halfway mark
+      if (!done && attempts === 20) {
+        setPulseText("Deep Analysis in Progress... Checking historical databases.");
+      }
+
       if (done || attempts >= maxAttempts) {
         clearInterval(interval);
         if (!done) {
           setIsVerifying(false);
-          alert("Verification is taking longer than usual. Check 'Your Messages' in few minutes.");
-          navigate('/');
         }
       }
     }, 2000);
@@ -97,15 +101,7 @@ const SubmitPage = () => {
     setIsVerifying(true);
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/api/user-check-data`, {
-        ...formData,
-        platform: 'N/A',
-        sender: 'N/A',
-        contact: 'N/A',
-        category: 'N/A',
-        flags: [],
-        genuineRating: '3'
-      });
+      const res = await axios.post(`${BACKEND_URL}/api/user-check-data`, formData);
 
       if (res.data.success) {
         pollResult(res.data.id);
@@ -142,99 +138,108 @@ const SubmitPage = () => {
         <div className="header-line"></div>
       </div>
 
-      <form onSubmit={handleSubmit} className={isVerifying ? 'verifying-fade' : ''}>
-        <div className="form-section">
-          <h3><Shield size={22} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#2563eb' }} />Primary Evidence</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+        <form onSubmit={handleSubmit} className={isVerifying ? 'verifying-fade' : ''} style={{ width: '60%', minWidth: '320px', padding: '1rem' }}>
+          <div className="form-section">
+            <h3><Shield size={22} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#2563eb' }} />Primary Evidence</h3>
 
-          <div className="input-group">
-            <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
-            <textarea
-              id="message"
-              name="message"
-              rows="8"
-              placeholder="Paste the suspicious content here..."
-              value={formData.message}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          <div className="form-row" style={{ display: 'flex', gap: '2rem' }}>
-            <div className="input-group" style={{ flex: 1 }}>
-              <label htmlFor="dateReceived">Date Received:</label>
-              <input
-                type="text"
-                id="dateReceived"
-                name="dateReceived"
-                placeholder="dd-mm-yyyy"
-                value={formData.dateReceived}
-                required
-              />
-            </div>
-
-            <div className="input-group" style={{ flex: 1 }}>
-              <label>Personal Details Shared?</label>
-              <select
-                name="personalDetails"
-                value={formData.personalDetails}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Option</option>
-                <option value="No">No</option>
-                <option value="Yes">Yes (Full Details)</option>
-                <option value="Mention">Mentioned Only</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Conditional Response Field */}
-          {(formData.personalDetails === 'Yes' || formData.personalDetails === 'Mention') && (
-            <div className="input-group slide-in">
-              <label htmlFor="responseDetails">Describe what details were shared:</label>
+            <div className="input-group">
+              <label htmlFor="message">Message in Circulation (Paste it as-is):</label>
               <textarea
-                name="responseDetails"
-                id="responseDetails"
-                rows="3"
-                placeholder="e.g. Aadhaar, OTP, Payment made..."
-                value={formData.responseDetails}
+                id="message"
+                name="message"
+                rows="8"
+                placeholder="Paste the suspicious content here..."
+                value={formData.message}
                 onChange={handleChange}
-                className="animated-slide"
+                required
               />
             </div>
-          )}
 
-          {/* Email Notification Toggle */}
-          <div className="input-group slide-in" style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(37, 99, 235, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
-            <input
-              type="checkbox"
-              id="send_email_notification"
-              name="send_email_notification"
-              checked={formData.send_email_notification}
-              onChange={handleChange}
-              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
-            />
-            <label htmlFor="send_email_notification" style={{ margin: 0, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
-              Send notification once verified via mail
-            </label>
-          </div>
-        </div>
+            <div className="form-row" style={{ display: 'flex', gap: '2rem' }}>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label htmlFor="dateReceived">Date Received:</label>
+                <input
+                  type="text"
+                  id="dateReceived"
+                  name="dateReceived"
+                  placeholder="dd-mm-yyyy"
+                  value={formData.dateReceived}
+                  required
+                />
+              </div>
 
-        <button type="submit" className="submit-btn investigative-btn" disabled={isVerifying}>
-          {isVerifying ? (
-            <div className="safety-pulse">
-              <div className="pulse-spinner"></div>
-              <span>{pulseText}</span>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label>Personal Details Shared?</label>
+                <select
+                  name="personalDetails"
+                  value={formData.personalDetails}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select Option</option>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes (Full Details)</option>
+                  <option value="Mention">Mentioned Only</option>
+                </select>
+              </div>
             </div>
-          ) : (
-            <>
-              <span className="btn-icon">🔍</span>
-              <span>VERIFY NOW</span>
-            </>
-          )}
-          <div className="btn-ripple"></div>
-        </button>
-      </form>
+
+            {/* Conditional Response Field */}
+            {(formData.personalDetails === 'Yes' || formData.personalDetails === 'Mention') && (
+              <div className="input-group slide-in">
+                <label htmlFor="responseDetails">Describe what details were shared:</label>
+                <textarea
+                  name="responseDetails"
+                  id="responseDetails"
+                  rows="3"
+                  placeholder="e.g. Aadhaar, OTP, Payment made..."
+                  value={formData.responseDetails}
+                  onChange={handleChange}
+                  className="animated-slide"
+                />
+              </div>
+            )}
+
+            {/* Email Notification Toggle */}
+            <div className="input-group slide-in" style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem', background: 'rgba(37, 99, 235, 0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.1)' }}>
+              <input
+                type="checkbox"
+                id="send_email_notification"
+                name="send_email_notification"
+                checked={formData.send_email_notification}
+                onChange={handleChange}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+              />
+              <label htmlFor="send_email_notification" style={{ margin: 0, fontSize: '0.95rem', color: '#1e293b', cursor: 'pointer', fontWeight: '500' }}>
+                Send notification once verified via mail
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" className="submit-btn investigative-btn" disabled={isVerifying}>
+            {isVerifying ? (
+              <div className="safety-pulse">
+                <div className="pulse-spinner"></div>
+                <span>{pulseText}</span>
+              </div>
+            ) : (
+              <>
+                <span className="btn-icon">🔍</span>
+                <span>VERIFY NOW</span>
+              </>
+            )}
+            <div className="btn-ripple"></div>
+          </button>
+        </form>
+
+        {/* Embedded Verification Summary Card */}
+        {resultData && !showModal && (
+          <div style={{ width: '60%', minWidth: '320px', marginTop: '2rem', paddingBottom: '3rem' }}>
+            <StudentMessageCard data={resultData} />
+          </div>
+        )}
+      </div>
 
       {isVerifying && (
         <div className="pulse-overlay">
@@ -247,7 +252,6 @@ const SubmitPage = () => {
           isOpen={showModal}
           onClose={() => {
             setShowModal(false);
-            navigate('/');
           }}
           data={resultData}
         />

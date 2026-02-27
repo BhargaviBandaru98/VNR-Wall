@@ -21,8 +21,8 @@
 }
 
 .diagnostic-modal-content {
-    width: 60%;
-    max-width: 1000px;
+    width: 80%;
+    max-width: 1400px;
     background: #ffffff;
     /* Solid for Light Theme */
     border-radius: 24px;

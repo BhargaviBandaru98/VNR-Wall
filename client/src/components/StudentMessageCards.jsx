@@ -33,7 +33,8 @@ import DiagnosticModal from './DiagnosticModal';
    ──────────────────────────────────────────────────────── */
 const StudentMessageCard = ({ data, onStatusUpdate }) => {
   const [showModal, setShowModal] = useState(false);
-  const { user } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { user, isAdmin } = useAuth();
 
   const isScam = data.status?.toLowerCase() === 'scam' || data.ai_result?.toLowerCase() === 'fake';
   const isGenuine = data.status?.toLowerCase() === 'genuine' || data.ai_result?.toLowerCase() === 'real';
@@ -156,80 +157,23 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
           </div>
         )}
 
-        {/* Student Academic Info */}
-        <div className="section academic-info">
-          <div className="section-header">
-            <span className="section-title">🧑‍🎓 Student Academic Info</span>
-          </div>
-          <div className="academic-details">
-            <div className="detail-item">
-              <span className="label">Branch:</span>
-              <span className="value">{data.branch}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Year:</span>
-              <span className="year-badge">{data.year}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Source and Feedback */}
-        <div className="row dual-section d-flex justify-content-around">
-          <div className="col-5 section source-section">
+        {/* Minimalist Student Query / Details Shared */}
+        {(data.personalDetails === 'Yes' || data.personalDetails === 'Mention') && (
+          <div className="section feedback-section" style={{ marginTop: '1rem' }}>
             <div className="section-header">
-              <span className="section-title">📩 Source of Message</span>
+              <span className="section-title">⭐ Student Query & Shared Details</span>
             </div>
-            <div className="source-details">
-              <div className="detail-row">
-                <span className="label">Platform:</span>
-                <span className="platform-badge">
-                  {data.highlightedPlatform || data.platform}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Sender:</span>
-                <span className="sender-name">
-                  {data.highlightedSender || data.sender}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Contact:</span>
-                <span className="contact-info">{data.contact}</span>
-              </div>
+            <div className="feedback-details" style={{ backgroundColor: '#f8fafc', padding: '0.8rem', borderRadius: '6px' }}>
+              <span className="details-shared" style={{ fontSize: '0.9rem', color: '#334155', lineHeight: '1.5' }}>
+                <span className="font-bold" style={{ display: 'block', marginBottom: '4px' }}>Context Provided ({data.personalDetails}):</span>
+                {data.responseDetails || 'No additional specifics provided by the user.'}
+              </span>
             </div>
           </div>
-
-          <div className="col-5 section feedback-section">
-            <div className="section-header">
-              <span className="section-title">⭐ Student Response</span>
-            </div>
-            <div className="feedback-details">
-              <div className="detail-row">
-                <span className="label">Responded Status:</span>
-                <span className={`response-status ${data.responseStatus === 'Yes' ? 'status-yes' :
-                  data.responseStatus === 'No' ? 'status-no' : 'status-considering'
-                  }`}>
-                  {data.responseStatus}
-                </span>
-              </div>
-              <div className="detail-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-                <span className="label">Details Shared:</span>
-                <span className="details-shared" style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
-                  {data.personalDetails === 'Yes' || data.personalDetails === 'Mention' ?
-                    `${data.personalDetails} - ${data.responseDetails || 'No specifics provided'}` :
-                    data.personalDetails}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Credibility:</span>
-                <div className="credibility-rating">{renderStars(data.credibilityRating)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Message Content */}
-        <div className="section message-section" onClick={e => e.stopPropagation()}>
+        <div className="section message-section" onClick={e => e.stopPropagation()} style={{ marginTop: '1rem' }}>
           <div className="section-header">
             <span className="section-title">💬 Message Content</span>
             <button onClick={() => setIsExpanded(!isExpanded)} className="expand-button">
@@ -239,18 +183,24 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
           <div className={`message-content ${isExpanded ? 'expanded' : 'collapsed'}`}>
             {data.highlightedMessage || data.messageContent}
           </div>
-          {data.tags && data.tags.length > 0 && (
-            <div className="tags-container">
-              {data.tags.map((tag, index) => (
-                <span key={index} className={`tag ${tag === 'Urgent' ? 'tag-urgent' :
-                  tag === 'Info Incomplete' ? 'tag-incomplete' :
-                    'tag-default'
-                  }`}>
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
+        </div>
+
+        {/* Diagnostic Conclusion Summary */}
+        <div className="section conclusion-section" style={{
+          marginTop: '1rem',
+          padding: '1rem',
+          backgroundColor: isScam ? '#fef2f2' : (isGenuine ? '#f0fdf4' : '#f8fafc'),
+          borderRadius: '8px',
+          borderLeft: `4px solid ${isScam ? '#ef4444' : (isGenuine ? '#22c55e' : '#3b82f6')}`
+        }}>
+          <span className="font-bold" style={{ display: 'block', marginBottom: '0.25rem', color: '#1e293b' }}>
+            Investigation Conclusion:
+          </span>
+          <span style={{ fontSize: '0.9rem', color: '#475569', lineHeight: '1.5' }}>
+            {isScam ? 'WARNING: This message has been flagged as a critical scam. Do not proceed or share details.' :
+              isGenuine ? 'VERIFIED: This communication represents an official and safe opportunity.' :
+                'IN REVIEW: This submission is currently undergoing manual administrative analysis.'}
+          </span>
         </div>
 
         {/* Click-to-view hint */}

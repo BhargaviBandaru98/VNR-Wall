@@ -96,27 +96,24 @@ db.run(`
 // Insert complaint data
 app.post('/api/user-check-data', (req, res) => {
   const {
-    name, roll, branch, year, dateReceived,
-    platform, sender, contact, category,
-    flags, responded, personalDetails, responseDetails,
-    genuineRating, message, userEmail, send_email_notification
+    dateReceived,
+    personalDetails,
+    responseDetails,
+    message,
+    userEmail,
+    send_email_notification
   } = req.body;
 
-  const flagsString = JSON.stringify(flags);
   const notifyFlag = send_email_notification ? 1 : 0;
 
   const sql = `
     INSERT INTO datacheck (
-      name, roll, branch, year, dateReceived,
-      platform, sender, contact, category,
-      flags, responded, personalDetails, response_details, genuineRating, message, status, user_email, send_email_notification
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      dateReceived, personalDetails, response_details, message, status, user_email, send_email_notification
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
   const params = [
-    name, roll, branch, year, dateReceived,
-    platform, sender, contact, category,
-    flagsString, responded, personalDetails, responseDetails, genuineRating, message, 'null', userEmail, notifyFlag
+    dateReceived, personalDetails, responseDetails, message, 'null', userEmail, notifyFlag
   ];
 
   db.run(sql, params, function (err) {
@@ -134,7 +131,7 @@ app.post('/api/user-check-data', (req, res) => {
     setImmediate(async () => {
       try {
         console.log('\n====== PIPELINE START: ID', newId, '======');
-        const submissionData = { id: newId, name, roll, branch, message, category, platform, sender };
+        const submissionData = { id: newId, message };
 
         // ─── Phase 6d: Deduplication (Cache) Layer ────────────────────────────
         console.log('[Deduplication] Checking for existing identical message...');

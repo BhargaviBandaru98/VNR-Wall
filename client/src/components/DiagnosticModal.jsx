@@ -102,14 +102,27 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                 </section>
 
                 <section className="forensic-evidence">
-                    <h4>Forensic Proof</h4>
-                    <div className="evidence-grid">
-                        <div className="evidence-item">
-                            <Info size={14} />
-                            <span>{data.ai_evidence || "No technical evidence available."}</span>
-                        </div>
+                    <h4 style={{ fontSize: '0.9rem', color: '#64748b', letterSpacing: '1px', marginBottom: '1rem', textTransform: 'uppercase' }}>Verification Analysis</h4>
+                    <div className="evidence-grid" style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.5)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                        <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#1e293b', lineHeight: '1.8' }}>
+                            {data.ai_evidence ? data.ai_evidence.split(/(?<=\w\.)\s+/).filter(Boolean).map((bullet, idx) => (
+                                <li key={idx} style={{ marginBottom: '0.5rem' }}>{bullet}</li>
+                            )) : (<li>No technical evidence available.</li>)}
+                        </ul>
                     </div>
                 </section>
+
+                {(data.protective_guidance || data.personalDetails === 'Yes' || data.personalDetails === 'Mention') && (
+                    <section className="forensic-answers" style={{ marginBottom: '2.5rem' }}>
+                        <h4 style={{ fontSize: '0.9rem', color: '#64748b', letterSpacing: '1px', marginBottom: '1rem', textTransform: 'uppercase' }}>AI Guidance & User Query Evaluation</h4>
+                        <div className="evidence-grid" style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#334155', lineHeight: '1.6' }}>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                <Info size={16} style={{ color: '#3b82f6', marginTop: '2px', flexShrink: 0 }} />
+                                <span>{data.protective_guidance || 'No specific protective guidance generated. Rely on the primary verdict for next steps.'}</span>
+                            </div>
+                        </div>
+                    </section>
+                )}
 
                 <footer className="modal-actions">
                     {isInReview && (
@@ -126,6 +139,12 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     {isScam && data.risk_level?.toUpperCase() === 'CRITICAL' && (
                         <button className="rescue-btn">
                             <span>WHAT DO I DO NOW?</span>
+                            <ArrowRight size={18} />
+                        </button>
+                    )}
+                    {isGenuine && (
+                        <button className="rescue-btn" style={{ background: '#10b981', boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)' }}>
+                            <span>PROCEED TO APPLY / VIEW OFFICIAL LINK</span>
                             <ArrowRight size={18} />
                         </button>
                     )}
