@@ -212,9 +212,13 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
                   {data.responseStatus}
                 </span>
               </div>
-              <div className="detail-row">
+              <div className="detail-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                 <span className="label">Details Shared:</span>
-                <span className="details-shared">{data.personalDetails}</span>
+                <span className="details-shared" style={{ fontSize: '0.85rem', color: '#475569', lineHeight: '1.4' }}>
+                  {data.personalDetails === 'Yes' || data.personalDetails === 'Mention' ?
+                    `${data.personalDetails} - ${data.responseDetails || 'No specifics provided'}` :
+                    data.personalDetails}
+                </span>
               </div>
               <div className="detail-row">
                 <span className="label">Credibility:</span>

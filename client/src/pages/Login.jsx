@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import axios from 'axios';
 import "../styles/Login.css";
 
 
@@ -35,7 +36,7 @@ const Login = () => {
 
       fetch("https://www.googleapis.com/oauth2/v1/userinfo?alt=json", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token} `,
         },
       })
         .then((res) => res.json())
@@ -49,7 +50,7 @@ const Login = () => {
               window.history.replaceState({}, document.title, "/login");
 
               // Show success message with role
-              alert(`Welcome ${loggedInUser.name}!`);
+              alert(`Welcome ${loggedInUser.name} !`);
 
               // Redirect based on profile status
               if (loggedInUser.isAdmin) {
@@ -115,6 +116,16 @@ const Login = () => {
 
   const handleNavigate = (path) => {
     navigate(path);
+  };
+
+  const devLogin = async (email) => {
+    try {
+      const { data } = await axios.post('http://localhost:6105/api/dev/login', { email });
+      if (data.success) {
+        login(data.user);
+        navigate(data.user.user_role === 'Admin' ? '/admin/analytics' : '/');
+      }
+    } catch (e) { console.error('Dev bypass failed', e); }
   };
 
   // If user is authenticated, show profile
@@ -373,6 +384,13 @@ const Login = () => {
                 )}
               </button>
             </div>
+
+            {import.meta.env.MODE === 'development' && (
+              <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button onClick={() => devLogin('audit@vnr.edu')} style={{ padding: '8px 16px', borderRadius: '6px', background: '#3b82f6', color: 'white' }}>Mock Student</button>
+                <button onClick={() => devLogin('bandarubhargavi664@gmail.com')} style={{ padding: '8px 16px', borderRadius: '6px', background: '#10b981', color: 'white' }}>Mock Admin</button>
+              </div>
+            )}
 
             {/* Security Message */}
             <div className="security-message">

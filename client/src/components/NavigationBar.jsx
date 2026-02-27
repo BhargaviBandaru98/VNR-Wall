@@ -3,11 +3,11 @@ import { Link } from "react-router-dom";
 import './Navi.css';
 import logo from '../assets/logo2.jpeg';
 import '../styles/Navbar.css';
-import { FaHome, FaEnvelopeOpenText, FaListAlt, FaUser, FaChartBar } from 'react-icons/fa';
+import { Home, Info, History, User, ChartLine, LayoutDashboard, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 function NavigationBar() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const isLoggedIn = !!user;
   const [isMobile, setIsMobile] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -79,30 +79,30 @@ function NavigationBar() {
         <ul className="navbar-nav pr-5">
           <li className="nav-item">
             <Link className="nav-link" to="">
-              <FaHome className="nav-icon" /> Home
+              <Home size={18} className="nav-icon" /> Home
             </Link>
           </li>
           <li className="nav-item">
             <Link className="nav-link" to="submit">
-              <FaEnvelopeOpenText className="nav-icon" /> Submit Info
+              <Info size={18} className="nav-icon" /> Verify Info
             </Link>
           </li>
           <li className="nav-item">
             <Link className="nav-link" to="responses">
-              <FaListAlt className="nav-icon" /> View Responses
+              <History size={18} className="nav-icon" /> View Responses
             </Link>
           </li>
-          {user?.isAdmin && (
+          {isAdmin && (
             <li className="nav-item">
-              <Link className="nav-link" to="admin/analytics">
-                <FaChartBar className="nav-icon" /> Analytics
+              <Link className="nav-link" to="dashboard">
+                <LayoutDashboard size={18} className="nav-icon" /> Dashboard
               </Link>
             </li>
           )}
           <li className="nav-item">
             <Link className="nav" to="login">
               <button className="btn btn-primary px-3 mx-2">
-                <FaUser className="nav-icon" /> {isLoggedIn ? 'Profile' : 'Login'}
+                <LogOut size={16} className="nav-icon" style={{ marginRight: '6px' }} /> {isLoggedIn ? 'Profile' : 'Login'}
               </button>
             </Link>
           </li>

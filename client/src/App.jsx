@@ -7,7 +7,6 @@ import HomePage from './pages/HomePage';
 import SubmitPage from './pages/SubmitPage';
 import ViewResponsesPage from './pages/ViewResponsePage.jsx';
 import Login from './pages/Login';
-
 import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
 import NavigationBar from './components/NavigationBar';
@@ -101,22 +100,21 @@ function App() {
               }
             />
 
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute adminOnly={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
             {/* ✅ FIXED: View Responses accessible to ALL logged-in users */}
             <Route
               path="/responses"
               element={
                 <ProtectedRoute>
                   <ViewResponsesPage />
-                </ProtectedRoute>
-              }
-            />
-
-
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute adminOnly={true}>
-                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

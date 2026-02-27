@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, AlertTriangle, CheckCircle, Info, ArrowRight, X, Bell } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, Info, ArrowRight, X, Bell, UserSearch } from 'lucide-react';
 import axios from 'axios';
 import '../styles/DiagnosticModal.css';
+import '../styles/Stepper.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
@@ -53,6 +54,25 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     {isExpired && <div className="expired-badge">DATA EXPIRED ({daysOld}d)</div>}
                 </header>
 
+                {isInReview && (
+                    <div className="in-review-stepper">
+                        <div className="step completed">
+                            <div className="step-icon"><CheckCircle2 size={18} /></div>
+                            <span className="step-label">Submitted</span>
+                        </div>
+                        <div className="step-line active"></div>
+                        <div className="step completed">
+                            <div className="step-icon"><CheckCircle2 size={18} /></div>
+                            <span className="step-label">AI Analysis</span>
+                        </div>
+                        <div className="step-line active"></div>
+                        <div className="step active pulsing">
+                            <div className="step-icon"><UserSearch size={18} /></div>
+                            <span className="step-label">Admin Review</span>
+                        </div>
+                    </div>
+                )}
+
                 <section className="verdict-comparison">
                     {/* SCAM PANEL */}
                     <div className={`verdict-panel scam-panel ${isScam ? 'active-verdict' : 'dimmed'}`}>
@@ -70,7 +90,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     {/* GENUINE PANEL */}
                     <div className={`verdict-panel genuine-panel ${isGenuine ? 'active-verdict' : 'dimmed'}`}>
                         <div className="panel-header">
-                            <CheckCircle className="icon-genuine" />
+                            <CheckCircle2 className="icon-genuine" />
                             <h3>GENUINE</h3>
                         </div>
                         <div className="probability-meter">
@@ -100,7 +120,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                             disabled={notifyEnabled || notifyLoading}
                         >
                             <Bell size={18} />
-                            <span>{notifyLoading ? 'ENABLING...' : notifyEnabled ? 'NOTIFICATION ENABLED' : 'NOTIFY ME WHEN VERIFIED'}</span>
+                            <span>{notifyLoading ? 'ENABLING...' : notifyEnabled ? '🔔 Notification On' : 'NOTIFY ME WHEN VERIFIED'}</span>
                         </button>
                     )}
                     {isScam && data.risk_level?.toUpperCase() === 'CRITICAL' && (

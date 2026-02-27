@@ -5,6 +5,7 @@ import '../styles/SubmitPage.css';
 import axios from 'axios';
 import 'flatpickr/dist/flatpickr.min.css';
 import DiagnosticModal from '../components/DiagnosticModal';
+import { Shield } from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
@@ -143,7 +144,7 @@ const SubmitPage = () => {
 
       <form onSubmit={handleSubmit} className={isVerifying ? 'verifying-fade' : ''}>
         <div className="form-section">
-          <h3>Primary Evidence</h3>
+          <h3><Shield size={22} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#2563eb' }} />Primary Evidence</h3>
 
           <div className="input-group">
             <label htmlFor="message">Message in Circulation (Paste it as-is):</label>

@@ -4,6 +4,7 @@ import axios from 'axios';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 import '../styles/ViewResponsesPage.css';
 import StudentMessageCard from '../components/StudentMessageCards';
+import { useAuth } from '../context/AuthContext';
 
 // Utility function for highlighting text
 const highlightText = (text, searchTerm) => {
@@ -180,6 +181,7 @@ const CategoryPage = ({
 };
 
 const ViewResponses = () => {
+  const { user, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState('home'); // 'home' or category id
@@ -208,6 +210,7 @@ const ViewResponses = () => {
           contact: item.contact || 'No Contact',
           responseStatus: item.responded || 'No',
           personalDetails: item.personalDetails || 'N/A',
+          responseDetails: item.response_details || null,
           credibilityRating: parseInt(item.genuineRating) || 0,
           messageContent: item.message || '',
           tags: item.flags ? JSON.parse(item.flags) : [],

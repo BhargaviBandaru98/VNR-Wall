@@ -16,6 +16,33 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3105';
 app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
 
+// ─── DEV ONLY BYPASS ─────────────────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/dev/login', (req, res) => {
+    const { email } = req.body;
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) {
+        // mock a generic user for the audit
+        const mockUser = {
+          id: 9999,
+          name: "Dev User",
+          email: email,
+          picture: "",
+          is_profile_complete: 1,
+          user_role: email.includes('admin') ? 'Admin' : 'Student',
+          year_of_study: '4',
+          college_name: 'VNRVJIET',
+          branch: 'CS',
+          roll: 'DEV-01'
+        };
+        return res.json({ success: true, user: mockUser });
+      }
+      res.json({ success: true, user: row });
+    });
+  });
+}
+
 // Connect to SQLite database
 const db = new sqlite3.Database('./database.db', (err) => {
   if (err) return console.error("❌ Failed to connect:", err.message);
@@ -71,7 +98,7 @@ app.post('/api/user-check-data', (req, res) => {
   const {
     name, roll, branch, year, dateReceived,
     platform, sender, contact, category,
-    flags, responded, personalDetails,
+    flags, responded, personalDetails, responseDetails,
     genuineRating, message, userEmail, send_email_notification
   } = req.body;
 
@@ -82,14 +109,14 @@ app.post('/api/user-check-data', (req, res) => {
     INSERT INTO datacheck (
       name, roll, branch, year, dateReceived,
       platform, sender, contact, category,
-      flags, responded, personalDetails, genuineRating, message, status, user_email, send_email_notification
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      flags, responded, personalDetails, response_details, genuineRating, message, status, user_email, send_email_notification
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const params = [
     name, roll, branch, year, dateReceived,
     platform, sender, contact, category,
-    flagsString, responded, personalDetails, genuineRating, message, 'null', userEmail, notifyFlag
+    flagsString, responded, personalDetails, responseDetails, genuineRating, message, 'null', userEmail, notifyFlag
   ];
 
   db.run(sql, params, function (err) {
@@ -187,7 +214,13 @@ app.post('/api/user-check-data', (req, res) => {
 
         // ─── STAGE C: Groq AI with all 3 evidence sources ────────────────────
         console.log('[Stage C] Groq AI with all evidence...');
-        const aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, personalDetails, dateReceived);
+
+        let combinedDetails = personalDetails;
+        if ((personalDetails === 'Yes' || personalDetails === 'Mention') && responseDetails) {
+          combinedDetails = `${personalDetails} - ${responseDetails}`;
+        }
+
+        const aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived);
         console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Result:', aiResult.result, '| Confidence:', aiResult.confidence);
         console.log('[Stage C] Scam Evidence:', aiResult.evidence);
         console.log('[Stage C] Genuine Evidence:', aiResult.genuine_evidence);
@@ -336,7 +369,41 @@ app.get('/api/admin/analytics', (req, res) => {
           if (err) return res.status(500).send(err.message);
           analytics.totalUsers = countRow.total;
 
-          res.json(analytics);
+          // 5. Workflow Tracking (Datacheck stats)
+          db.all('SELECT status, ai_score, genuineRating FROM datacheck', (err, cases) => {
+            if (err) return res.status(500).send(err.message);
+
+            let totalInvestigations = cases.length;
+            let pendingManual = 0;
+            let completedManual = 0;
+            let autoVerifications = 0;
+
+            cases.forEach(c => {
+              const status = (c.status || 'null').toLowerCase();
+              if (status === 'null' || status === 'inreview') {
+                pendingManual++;
+              } else if (status === 'genuine' || status === 'scam') {
+                // Determine if it was auto-marked based on our backend logic rules
+                const scamScore = parseInt(c.ai_score) || 0;
+                const genuineScore = parseInt(c.genuineRating) || 0;
+                if ((genuineScore > scamScore) || (scamScore >= 80 && genuineScore <= scamScore)) {
+                  autoVerifications++;
+                } else {
+                  completedManual++;
+                }
+              }
+            });
+
+            analytics.investigations = {
+              total: totalInvestigations,
+              pendingManual,
+              completedManual,
+              manualRequests: pendingManual + completedManual,
+              autoVerifications
+            };
+
+            res.json(analytics);
+          });
         });
       });
     });
@@ -441,6 +508,41 @@ app.put('/api/notify-request/:id', (req, res) => {
     }
     console.log(`✅ Notification enabled for ID ${id}`);
     res.json({ success: true });
+  });
+});
+
+// Get User Stats for Dashboard
+app.get('/api/user-stats/:email', (req, res) => {
+  const { email } = req.params;
+
+  const query = `
+    SELECT 
+      COUNT(id) as totalInvestigations,
+      SUM(CASE WHEN (status = 'Scam' OR ai_result = 'Fake') THEN 1 ELSE 0 END) as scamsAvoided
+    FROM datacheck 
+    WHERE user_email = ?
+  `;
+
+  db.get(query, [email], (err, stats) => {
+    if (err) return res.status(500).send(err.message);
+
+    const recentQuery = `
+      SELECT id, category, message, dateReceived, status, ai_result, risk_level, ai_score 
+      FROM datacheck 
+      WHERE user_email = ? 
+      ORDER BY id DESC 
+      LIMIT 5
+    `;
+
+    db.all(recentQuery, [email], (err2, recentActivity) => {
+      if (err2) return res.status(500).send(err2.message);
+
+      res.json({
+        totalInvestigations: stats.totalInvestigations || 0,
+        scamsAvoided: stats.scamsAvoided || 0,
+        recentActivity: recentActivity || []
+      });
+    });
   });
 });
 
