@@ -9,12 +9,7 @@
   animation: fadeIn 0.5s ease-in-out;
   margin-top: 15vh;
 }
-.S9gUrf-YoZ4jf{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
+
 .login-wrapper {
   width: 100%;
   max-width: 28rem;
@@ -381,7 +376,6 @@
   color: #7dd3fc;
 }
 
-
 /* Action Buttons */
 .action-buttons {
   display: flex;
@@ -404,7 +398,6 @@
 }
 
 .submit-btn {
-  margin-top: 0 !important;
   background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
 }
@@ -422,26 +415,8 @@
   background: linear-gradient(135deg, #0ea5e9, #3b82f6);
 }
 
-.responses-btn {
-  background: linear-gradient(135deg, #95acd1, #7d8aa6);
-  color: white;
-}
-
-.responses-btn:hover {
-  background: linear-gradient(135deg, #849ec8, #7083ad);
-  transform: scale(1.02);
-}
-
-[data-theme="dark"] .responses-btn {
-  background: linear-gradient(135deg, #95acd1, #7d8aa6);
-}
-
-[data-theme="dark"] .responses-btn:hover {
-  background: linear-gradient(135deg, #95acd1, #7d8aa6);
-}
-
 .home-btn {
-  background: linear-gradient(135deg, #2e9f7b, #2e9f7b);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: white;
 }
 
