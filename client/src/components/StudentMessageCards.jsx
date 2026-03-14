@@ -10,7 +10,7 @@ import '../styles/StudentMessagesCards.css';
      "<evidence> | Fake Score: N | Genuine Score: M | Path: …"
 ──────────────────────────────────────────────────────── */
 function parseEvidence(raw) {
-  if (!raw) return { fakeReason: null, genuineReason: null, path: null };
+  if (!raw) return { scamReason: null, genuineReason: null, path: null };
   const parts = raw.split(' | ');
   let fakeReason = null, genuineReason = null, path = null;
   parts.forEach(p => {
@@ -31,13 +31,13 @@ import DiagnosticModal from './DiagnosticModal';
 /* ────────────────────────────────────────────────────────
    Student Message Card
    ──────────────────────────────────────────────────────── */
-const StudentMessageCard = ({ data, onStatusUpdate }) => {
+const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
   const [showModal, setShowModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { user, isAdmin } = useAuth();
 
-  const isScam = data.status?.toLowerCase() === 'scam' || data.ai_result?.toLowerCase() === 'fake';
-  const isGenuine = data.status?.toLowerCase() === 'genuine' || data.ai_result?.toLowerCase() === 'real';
+  const isScam = data.status?.toLowerCase() === 'scam' || data.aiResult?.toLowerCase() === 'fake' || (data.scamScore >= 80);
+  const isGenuine = data.status?.toLowerCase() === 'genuine' || data.aiResult?.toLowerCase() === 'real';
 
   const getStatusBadge = () => {
     if (isScam) return <span className="badge badge-scam">🚨 SCAM</span>;
@@ -46,7 +46,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
   };
 
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'inreview': return 'status-inreview';
       case 'genuine': return 'status-genuine';
       case 'scam': return 'status-fake';
@@ -56,7 +56,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
   };
 
   const getCategoryColor = (category) => {
-    switch (category.toLowerCase()) {
+    switch (category?.toLowerCase() || '') {
       case 'exam drive': return 'category-exam-drive';
       case 'placement': return 'category-placement';
       case 'internship': return 'category-internship';
@@ -64,38 +64,39 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
     }
   };
 
-  const renderStars = (rating) => (
-    <div className="stars-container">
-      {[...Array(5)].map((_, i) => (
-        <Star key={i} size={14} className={i < rating ? 'star-filled' : 'star-empty'} />
-      ))}
-      <span className="rating-text">({rating}/5)</span>
-    </div>
-  );
-
   const handleStatusChange = (newStatus) => {
     if (onStatusUpdate) onStatusUpdate(data.id, newStatus);
   };
 
   const hasAI = data.aiChecked && data.scamScore !== null;
 
+  const handleCardClick = () => {
+    if (isAdmin && onViewVerification) {
+      onViewVerification(data);
+    } else {
+      setShowModal(true);
+    }
+  };
+
   return (
     <>
-      {/* Modal Integration */}
-      <DiagnosticModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        data={data}
-      />
+      {/* Modal Integration - fallback for non-admins */}
+      {!isAdmin && (
+        <DiagnosticModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          data={data}
+        />
+      )}
 
       {/* ── Card ── */}
       <div
         className="student-card enhanced-card clickable-card"
-        onClick={() => setShowModal(true)}
+        onClick={handleCardClick}
         role="button"
         tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && setShowModal(true)}
-        title="Click to view full details"
+        onKeyDown={e => e.key === 'Enter' && handleCardClick()}
+        title={isAdmin ? "Click to view Forensic Proof & Actions" : "Click to view full details"}
       >
         {/* Header */}
         <div className="card-header">
@@ -111,7 +112,7 @@ const StudentMessageCard = ({ data, onStatusUpdate }) => {
             {isAdmin ? (
               <div className="admin-actions" onClick={e => e.stopPropagation()}>
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => onViewVerification && onViewVerification(data)}
                   className="admin-btn proof-btn"
                   title="Review the evidence used to verify this message."
                 >

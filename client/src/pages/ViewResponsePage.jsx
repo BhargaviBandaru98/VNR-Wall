@@ -5,11 +5,13 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 import '../styles/ViewResponsesPage.css';
 import StudentMessageCard from '../components/StudentMessageCards';
 import { useAuth } from '../context/AuthContext';
+import VerificationModal from '../components/VerificationModal';
 
 // Utility function for highlighting text
 const highlightText = (text, searchTerm) => {
   if (!searchTerm) return text;
   const regex = new RegExp(`(${searchTerm})`, "gi");
+  if (!text) return "";
   return text.split(regex).map((part, i) =>
     part.toLowerCase() === searchTerm.toLowerCase() ? (
       <mark key={i} className="highlight">{part}</mark>
@@ -57,7 +59,8 @@ const CategoryPage = ({
   setActiveCategory,
   counts,
   onBackToHome,
-  onStatusUpdate
+  onStatusUpdate,
+  onViewVerification 
 }) => {
   const [filteredMessages, setFilteredMessages] = useState([]);
 
@@ -67,10 +70,10 @@ const CategoryPage = ({
     if (searchTerm.trim()) {
       const searchLower = searchTerm.trim().toLowerCase();
       filtered = filtered.filter(msg =>
-        msg.messageContent.toLowerCase().includes(searchLower) ||
-        msg.sender.toLowerCase().includes(searchLower) ||
-        msg.platform.toLowerCase().includes(searchLower) ||
-        msg.branch.toLowerCase().includes(searchLower) ||
+        (msg.messageContent?.toLowerCase() || "").includes(searchLower) ||
+        (msg.sender?.toLowerCase() || "").includes(searchLower) ||
+        (msg.platform?.toLowerCase() || "").includes(searchLower) ||
+        (msg.branch?.toLowerCase() || "").includes(searchLower) ||
         (msg.tags && msg.tags.some(tag => tag.toLowerCase().includes(searchLower)))
       );
     }
@@ -103,7 +106,7 @@ const CategoryPage = ({
 
           {/* Search Bar */}
           <div className="category-search-wrapper">
-            <div>
+            <div className="search-input-box">
               <Search className="category-search-icon" />
               <input
                 type="text"
@@ -155,6 +158,7 @@ const CategoryPage = ({
                       highlightedPlatform: highlightText(message.platform, searchTerm),
                     }}
                     onStatusUpdate={onStatusUpdate}
+                    onViewVerification={onViewVerification}
                   />
                   {message.submittedByUser && (
                     <div className="submission-badge">
@@ -188,6 +192,8 @@ const ViewResponses = () => {
   const [messages, setMessages] = useState([]);
   const [homeSearchResults, setHomeSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const [selectedMessageForVerification, setSelectedMessageForVerification] = useState(null);
 
   // Fetch messages from server
   useEffect(() => {
@@ -230,7 +236,7 @@ const ViewResponses = () => {
       }
     };
     fetchMessages();
-  }, []);
+  }, [user?.email]);
 
   // Update message status
   const updateMessageStatus = async (messageId, newStatus) => {
@@ -248,15 +254,31 @@ const ViewResponses = () => {
     }
   };
 
+  // Handle opening verification modal
+  const handleViewVerification = (message) => {
+    setSelectedMessageForVerification(message);
+    setIsVerificationModalOpen(true);
+  };
+
+  // Handle marking as genuine from modal
+  const handleMarkGenuine = (messageId) => {
+    updateMessageStatus(messageId, 'genuine');
+  };
+
+  // Handle marking as fake from modal
+  const handleMarkFake = (messageId) => {
+    updateMessageStatus(messageId, 'fake');
+  };
+
   // Filter messages based on home search term
   useEffect(() => {
     if (currentPage === 'home' && searchTerm.trim()) {
       const filtered = messages.filter(msg =>
-        msg.messageContent.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        msg.sender.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        msg.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        msg.branch.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        msg.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (msg.messageContent?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (msg.sender?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (msg.platform?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (msg.branch?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+        (msg.category?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (msg.tags && msg.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
       );
       setHomeSearchResults(filtered);
@@ -453,6 +475,7 @@ const ViewResponses = () => {
                         highlightedPlatform: highlightText(message.platform, searchTerm),
                       }}
                       onStatusUpdate={updateMessageStatus}
+                      onViewVerification={handleViewVerification}
                     />
                     {message.submittedByUser && (
                       <div className="submission-badge">
@@ -466,6 +489,18 @@ const ViewResponses = () => {
             )}
           </div>
         )}
+
+        {/* Verification Modal */}
+        <VerificationModal
+          isOpen={isVerificationModalOpen}
+          onClose={() => {
+            setIsVerificationModalOpen(false);
+            setSelectedMessageForVerification(null);
+          }}
+          data={selectedMessageForVerification}
+          onMarkGenuine={handleMarkGenuine}
+          onMarkFake={handleMarkFake}
+        />
       </div>
     );
   }
@@ -475,18 +510,33 @@ const ViewResponses = () => {
   const categoryMessages = getFilteredMessages();
 
   return (
-    <CategoryPage
-      category={currentCategory}
-      messages={categoryMessages}
-      searchTerm={searchTerm}
-      setSearchTerm={setSearchTerm}
-      categories={categories}
-      activeCategory={activeCategory}
-      setActiveCategory={handleBottomNavClick}
-      counts={counts}
-      onBackToHome={() => setCurrentPage('home')}
-      onStatusUpdate={updateMessageStatus}
-    />
+    <>
+      <CategoryPage
+        category={currentCategory}
+        messages={categoryMessages}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        categories={categories}
+        activeCategory={activeCategory}
+        setActiveCategory={handleBottomNavClick}
+        counts={counts}
+        onBackToHome={() => setCurrentPage('home')}
+        onStatusUpdate={updateMessageStatus}
+        onViewVerification={handleViewVerification}
+      />
+      
+      {/* Verification Modal for Category Page */}
+      <VerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => {
+          setIsVerificationModalOpen(false);
+          setSelectedMessageForVerification(null);
+        }}
+        data={selectedMessageForVerification}
+        onMarkGenuine={handleMarkGenuine}
+        onMarkFake={handleMarkFake}
+      />
+    </>
   );
 };
 
