@@ -43,6 +43,16 @@ const DATACHECK_COLUMNS = [
   { name: 'genuine_score',           type: 'INTEGER' },
 ];
 
+const LEARNING_RULE_COLUMNS = [
+  { name: 'submission_id',   type: 'INTEGER' },
+  { name: 'pattern',         type: 'TEXT'    }, // Generalized scam/genuine pattern
+  { name: 'admin_decision',  type: 'TEXT'    }, // SCAM | GENUINE
+  { name: 'admin_reason',    type: 'TEXT'    }, // The full text provided by admin
+  { name: 'created_at',      type: 'TEXT'    },
+  { name: 'is_active',       type: 'INTEGER', default: 1 },
+];
+
+
 const USER_COLUMNS = [
   { name: 'email', type: 'TEXT' },
   { name: 'college_name', type: 'TEXT' },
@@ -99,6 +109,26 @@ async function extendSchema(db, done) {
   console.log('[extendSchema] Starting schema audit...');
   await extendTable(db, 'datacheck', DATACHECK_COLUMNS);
   await extendTable(db, 'users', USER_COLUMNS);
+
+  // Phase 5: Create Learning Rules Table
+  await new Promise((resolve) => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS agent_learning_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        submission_id INTEGER,
+        pattern TEXT,
+        admin_decision TEXT,
+        admin_reason TEXT,
+        created_at TEXT,
+        is_active INTEGER DEFAULT 1
+      )
+    `, (err) => {
+      if (err) console.error('❌ Failed to create agent_learning_rules table:', err.message);
+      else console.log('✅ agent_learning_rules table ready.');
+      resolve();
+    });
+  });
+
   console.log('[extendSchema] Schema audit complete.');
   if (done) done();
 }

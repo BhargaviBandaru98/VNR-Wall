@@ -3,8 +3,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const { extendSchema } = require('./database/extendSchema');
-const { verifyMessageWithAI, groq } = require('./services/aiVerificationService');
-const { scrapeUrl } = require('./services/firecrawlService');
+const { verifyMessageWithAI, extractPatternFromReason, sendUserNotification: aiSendUserNotification } = require('./services/aiVerificationService');
 const { searchOfficialSite, extractCompanyName } = require('./services/searchService');
 const { checkUrlSafety } = require('./services/webRiskService');
 const { sendAdminAlert, sendUserNotification, verifyConnection } = require('./services/emailService');
@@ -424,6 +423,52 @@ app.post('/api/admin/verify-submission', (req, res) => {
     });
 
     res.json({ success: true, message: `Submission ${id} marked as ${finalResult}` });
+
+    // ── Phase 5: Agent Learning (only if reason exists) ──
+    if (adminReason) {
+      extractPatternFromReason(adminReason)
+        .then(pattern => {
+          if (pattern) {
+            const learningSql = `
+              INSERT INTO agent_learning_rules (submission_id, pattern, admin_decision, admin_reason, created_at, is_active)
+              VALUES (?, ?, ?, ?, ?, 1)
+            `;
+            db.run(learningSql, [id, pattern, finalResult, adminReason, timestamp], (err) => {
+              if (err) console.error('❌ Failed to save learning rule:', err.message);
+              else console.log(`✅ Learning rule created for ID ${id}: "${pattern}"`);
+            });
+          }
+        })
+        .catch(e => console.error('❌ Pattern extraction error:', e.message));
+    }
+  });
+});
+
+// ─── Phase 6: Learning Rule Management ─────────────────────────────────────────
+
+// List all learning rules
+app.get('/api/admin/learning-rules', (req, res) => {
+  db.all('SELECT * FROM agent_learning_rules ORDER BY id DESC', (err, rows) => {
+    if (err) return res.status(500).send(err.message);
+    res.json(rows);
+  });
+});
+
+// Toggle rule activity
+app.put('/api/admin/learning-rules/:id/toggle', (req, res) => {
+  const { id } = req.params;
+  db.run('UPDATE agent_learning_rules SET is_active = 1 - is_active WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).send(err.message);
+    res.json({ success: true });
+  });
+});
+
+// Delete rule
+app.delete('/api/admin/learning-rules/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM agent_learning_rules WHERE id = ?', [id], function(err) {
+    if (err) return res.status(500).send(err.message);
+    res.json({ success: true });
   });
 });
 

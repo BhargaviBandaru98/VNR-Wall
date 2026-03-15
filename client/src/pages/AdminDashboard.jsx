@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Users, School, PieChart, BarChart, ShieldCheck, Clock, ClipboardList, CheckCircle, AlertCircle } from 'lucide-react';
+import { Users, School, PieChart, BarChart, ShieldCheck, Clock, ClipboardList, CheckCircle, AlertCircle, Trash2, ToggleLeft, ToggleRight, BrainCircuit } from 'lucide-react';
 import '../styles/AdminDashboard.css';
 import AdminReviewCard from '../components/AdminReviewCard';
 
@@ -10,6 +10,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 const AdminDashboard = () => {
     const [data, setData] = useState(null);
     const [inReviewSubmissions, setInReviewSubmissions] = useState([]);
+    const [learningRules, setLearningRules] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -31,20 +32,51 @@ const AdminDashboard = () => {
         }
     };
 
+    const fetchLearningRules = async () => {
+        try {
+            const res = await axios.get(`${BACKEND_URL}/api/admin/learning-rules`);
+            setLearningRules(res.data);
+        } catch (error) {
+            console.error("Failed to fetch learning rules:", error);
+        }
+    };
+
     useEffect(() => {
         const loadAll = async () => {
             setLoading(true);
-            await Promise.all([fetchAnalytics(), fetchInReview()]);
+            await Promise.all([fetchAnalytics(), fetchInReview(), fetchLearningRules()]);
             setLoading(false);
         };
         loadAll();
     }, []);
 
+
     const handleVerdictSubmitted = (id) => {
         // Remove from local list and refresh counts
         setInReviewSubmissions(prev => prev.filter(s => s.id !== id));
-        fetchAnalytics(); // Refresh the efficiency and workflow metrics
+        fetchAnalytics(); 
+        fetchLearningRules(); // Refresh rules list as a new one might have been created
     };
+
+    const handleToggleRule = async (id) => {
+        try {
+            await axios.put(`${BACKEND_URL}/api/admin/learning-rules/${id}/toggle`);
+            setLearningRules(prev => prev.map(r => r.id === id ? { ...r, is_active: 1 - r.is_active } : r));
+        } catch (error) {
+            console.error("Failed to toggle rule:", error);
+        }
+    };
+
+    const handleDeleteRule = async (id) => {
+        if (!window.confirm("Delete this learning rule permanently?")) return;
+        try {
+            await axios.delete(`${BACKEND_URL}/api/admin/learning-rules/${id}`);
+            setLearningRules(prev => prev.filter(r => r.id !== id));
+        } catch (error) {
+            console.error("Failed to delete rule:", error);
+        }
+    };
+
 
 
     if (loading) return <div className="admin-loader">Analyzing Demographics...</div>;
@@ -191,6 +223,61 @@ const AdminDashboard = () => {
                     </div>
                 )}
             </section>
+
+            {/* ── Phase 6: Learning Rule Management ───────────────────────── */}
+            <section className="learning-rules-section">
+                <div className="section-header-flex">
+                    <h2 className="section-title"><BrainCircuit size={24} style={{ marginRight: '10px', verticalAlign: 'middle' }} /> AI Learning Rules</h2>
+                    <span className="count-label">{learningRules.length} Active Rules</span>
+                </div>
+
+                <div className="rules-glass-container glass-card">
+                    {learningRules.length === 0 ? (
+                        <p className="empty-text">No learning rules created yet. They appear when you provide verification feedback.</p>
+                    ) : (
+                        <div className="rules-table-wrapper">
+                            <table className="rules-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pattern (AI Extracted)</th>
+                                        <th>Verdict</th>
+                                        <th>Created</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {learningRules.map(rule => (
+                                        <tr key={rule.id}>
+                                            <td className="rule-pattern">{rule.pattern}</td>
+                                            <td>
+                                                <span className={`verdict-tag ${rule.admin_decision.toLowerCase()}`}>
+                                                    {rule.admin_decision}
+                                                </span>
+                                            </td>
+                                            <td className="rule-date">{new Date(rule.created_at).toLocaleDateString()}</td>
+                                            <td>
+                                                <button 
+                                                    className={`status-toggle ${rule.is_active ? 'active' : 'inactive'}`}
+                                                    onClick={() => handleToggleRule(rule.id)}
+                                                >
+                                                    {rule.is_active ? <ToggleRight size={32} color="#10b981" /> : <ToggleLeft size={32} color="#94a3b8" />}
+                                                </button>
+                                            </td>
+                                            <td>
+                                                <button className="delete-rule-btn" onClick={() => handleDeleteRule(rule.id)}>
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </section>
+
 
 
             <div className="college-tracking">

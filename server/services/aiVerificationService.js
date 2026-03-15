@@ -117,7 +117,6 @@ Return ONLY valid JSON:
         // Map risk_level to results for internal logic compatibility
         const isHighRisk = parsed.risk_level === 'High' || parsed.risk_level === 'Critical' || parsed.scam_score >= 80;
         const mappedResult = isHighRisk ? 'SCAM' : (parsed.result || 'GENUINE');
-
         return {
             scam_score: typeof parsed.scam_score === 'number' ? parsed.scam_score : 50,
             genuine_score: typeof parsed.genuine_score === 'number' ? parsed.genuine_score : 0,
@@ -143,4 +142,43 @@ Return ONLY valid JSON:
     }
 }
 
-module.exports = { verifyMessageWithAI, groq };
+/**
+ * Phase 5: Pattern Extraction
+ * Converts specific admin reason into a generalized behavioral pattern.
+ * @param {string} adminReason
+ * @returns {Promise<string>}
+ */
+async function extractPatternFromReason(adminReason) {
+    if (!adminReason || adminReason.trim().length === 0) return '';
+
+    const prompt = `
+You are an AI Forensic Analyst. Your task is to take a specific explanation for a scam/genuine verdict and convert it into a generalized behavioral pattern.
+
+RULES:
+1. Remove specific amounts, names, or dates.
+2. Focus on the method of request or communication.
+3. Keep it brief (max 15 words).
+4. Do NOT include any preamble or labels.
+
+EXAMPLE:
+Input: "Recruiter asking for ₹5000 as a registration fee through a private WhatsApp link"
+Output: "Recruiter requesting registration fee via private messaging link"
+
+Input: "${adminReason}"
+Output:`;
+
+    try {
+        const response = await groq.chat.completions.create({
+            model: 'llama-3.1-8b-instant', // Fast, cheaper model for simple extraction
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0,
+        });
+
+        return response.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('[aiVerificationService] Pattern extraction failed:', error.message);
+        return adminReason; // Fallback to raw reason if AI fails
+    }
+}
+
+module.exports = { verifyMessageWithAI, extractPatternFromReason, groq };

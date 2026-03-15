@@ -310,3 +310,101 @@
     flex-direction: column;
     gap: 2rem;
 }
+
+/* Phase 6: Learning Rules Styling */
+.learning-rules-section {
+    margin-top: 5rem;
+    margin-bottom: 5rem;
+}
+
+.rules-glass-container {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.rules-table-wrapper {
+    overflow-x: auto;
+}
+
+.rules-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.rules-table th {
+    background: rgba(0, 0, 0, 0.02);
+    padding: 1.2rem 1.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme='dark'] .rules-table th {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.rules-table td {
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.rule-pattern {
+    font-weight: 600;
+    max-width: 400px;
+}
+
+.verdict-tag {
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.verdict-tag.scam { background: #fee2e2; color: #ef4444; }
+.verdict-tag.genuine { background: #dcfce7; color: #10b981; }
+
+.status-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.3s;
+}
+
+.status-toggle:hover { opacity: 0.8; }
+
+.delete-rule-btn {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    padding: 0.6rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.delete-rule-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.empty-text {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.rule-date {
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
