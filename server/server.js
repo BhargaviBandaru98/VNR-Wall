@@ -349,6 +349,84 @@ app.get('/api/datas/:id', (req, res) => {
   });
 });
 
+// ─── Phase 3: Admin Review Panel Endpoints ─────────────────────────────────────
+
+// Get all submissions pending manual review
+app.get('/api/admin/in-review', (req, res) => {
+  const sql = `
+    SELECT * FROM datacheck 
+    WHERE submission_status = 'IN_REVIEW' 
+    AND (verified_by_admin IS NULL OR verified_by_admin = 0)
+    ORDER BY id DESC
+  `;
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('❌ Error fetching in-review data:', err.message);
+      return res.status(500).send(err.message);
+    }
+    res.json(rows);
+  });
+});
+
+// Submit admin verdict (Phase 3 & 4)
+app.post('/api/admin/verify-submission', (req, res) => {
+  const { id, verdict, reason } = req.body;
+
+  if (!id || !verdict) {
+    return res.status(400).json({ error: 'Missing id or verdict' });
+  }
+
+  // Phase 4: Prepare update data
+  const finalResult = verdict.toUpperCase(); // SCAM or GENUINE
+  const adminReason = reason || null;
+  const timestamp = new Date().toISOString();
+
+  const updateSql = `
+    UPDATE datacheck 
+    SET final_result = ?, 
+        admin_reason = ?, 
+        verified_by_admin = 1, 
+        verification_timestamp = ?, 
+        submission_status = 'ADMIN_VERIFIED',
+        status = ?
+    WHERE id = ?
+  `;
+
+  // Map verdict to the display status used by the app
+  const displayStatus = finalResult === 'SCAM' ? 'Scam' : 'Genuine';
+
+  db.run(updateSql, [finalResult, adminReason, timestamp, displayStatus, id], function (err) {
+    if (err) {
+      console.error('❌ Error updating admin verification:', err.message);
+      return res.status(500).send(err.message);
+    }
+
+    console.log(`✅ Admin verified ID ${id} as ${finalResult}. Reason: ${adminReason || 'None'}`);
+
+    // Trigger user notification if requested (Phase 4, Step 4)
+    db.get('SELECT * FROM datacheck WHERE id = ?', [id], (err, row) => {
+      if (!err && row && (row.send_email_notification || row.notification_requested)) {
+        if (row.user_email) {
+          // Construct notification data
+          const notificationData = {
+            ...row,
+            status: displayStatus,
+            // Override with admin feedback if provided
+            ai_evidence: adminReason ? `Admin Feedback: ${adminReason}` : row.ai_evidence,
+            genuine_evidence: adminReason ? `Admin Feedback: ${adminReason}` : row.genuine_evidence
+          };
+          
+          sendUserNotification(row.user_email, notificationData)
+            .then(() => console.log(`[Admin] Notification sent to ${row.user_email}`))
+            .catch(e => console.error(`[Admin] Notification failed: ${e.message}`));
+        }
+      }
+    });
+
+    res.json({ success: true, message: `Submission ${id} marked as ${finalResult}` });
+  });
+});
+
 // Get all users
 app.get('/api/users', (req, res) => {
   db.all('SELECT * FROM users', (err, rows) => {

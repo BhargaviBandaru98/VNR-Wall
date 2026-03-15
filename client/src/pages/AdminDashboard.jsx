@@ -1,29 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Users, School, PieChart, BarChart, ShieldCheck, Clock, ClipboardList, CheckCircle } from 'lucide-react';
+import { Users, School, PieChart, BarChart, ShieldCheck, Clock, ClipboardList, CheckCircle, AlertCircle } from 'lucide-react';
 import '../styles/AdminDashboard.css';
+import AdminReviewCard from '../components/AdminReviewCard';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const AdminDashboard = () => {
     const [data, setData] = useState(null);
+    const [inReviewSubmissions, setInReviewSubmissions] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    const fetchAnalytics = async () => {
+        try {
+            const res = await axios.get(`${BACKEND_URL}/api/admin/analytics`);
+            setData(res.data);
+        } catch (error) {
+            console.error("Failed to fetch analytics:", error);
+        }
+    };
+
+    const fetchInReview = async () => {
+        try {
+            const res = await axios.get(`${BACKEND_URL}/api/admin/in-review`);
+            setInReviewSubmissions(res.data);
+        } catch (error) {
+            console.error("Failed to fetch in-review submissions:", error);
+        }
+    };
+
     useEffect(() => {
-        const fetchAnalytics = async () => {
-            try {
-                const res = await axios.get(`${BACKEND_URL}/api/admin/analytics`);
-                setData(res.data);
-            } catch (error) {
-                console.error("Failed to fetch analytics:", error);
-            } finally {
-                setLoading(false);
-            }
+        const loadAll = async () => {
+            setLoading(true);
+            await Promise.all([fetchAnalytics(), fetchInReview()]);
+            setLoading(false);
         };
-        fetchAnalytics();
+        loadAll();
     }, []);
+
+    const handleVerdictSubmitted = (id) => {
+        // Remove from local list and refresh counts
+        setInReviewSubmissions(prev => prev.filter(s => s.id !== id));
+        fetchAnalytics(); // Refresh the efficiency and workflow metrics
+    };
+
 
     if (loading) return <div className="admin-loader">Analyzing Demographics...</div>;
     if (!data) return <div>Error loading analytics</div>;
@@ -144,6 +166,32 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* ── Phase 3: In Review Submissions ────────────────────────────── */}
+            <section className="in-review-section">
+                <div className="section-header-flex">
+                    <h2 className="section-title">🔍 In Review Submissions</h2>
+                    <span className="count-label">{inReviewSubmissions.length} Pending</span>
+                </div>
+
+                {inReviewSubmissions.length === 0 ? (
+                    <div className="empty-review-state glass-card">
+                        <AlertCircle className="icon-info" />
+                        <p>No submissions currently require manual review. System is efficient.</p>
+                    </div>
+                ) : (
+                    <div className="review-list">
+                        {inReviewSubmissions.map(sub => (
+                            <AdminReviewCard 
+                                key={sub.id} 
+                                data={sub} 
+                                onVerictSubmitted={handleVerdictSubmitted}
+                            />
+                        ))}
+                    </div>
+                )}
+            </section>
+
 
             <div className="college-tracking">
                 <h3>Active Colleges</h3>

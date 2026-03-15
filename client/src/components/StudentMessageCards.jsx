@@ -146,7 +146,8 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
         </div>
 
         {/* Verification Summary Strip — quick glance if available */}
-        {hasAI && (
+        {/* Phase 3 Rule: Visible ONLY if (admin) OR (already verified scam/genuine) */}
+        {hasAI && (isAdmin || isScam || isGenuine) && (
           <div className="card-ai-strip">
             <span className="ai-strip-fake">
               🚨 {data.scamScore}% Scam
