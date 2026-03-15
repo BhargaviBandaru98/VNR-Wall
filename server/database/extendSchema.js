@@ -16,7 +16,9 @@ const DATACHECK_COLUMNS = [
   { name: 'protective_guidance', type: 'TEXT' },
   { name: 'user_email', type: 'TEXT' }, // Added for user sync
   { name: 'is_expired', type: 'INTEGER' },
-  { name: 'send_email_notification', type: 'INTEGER' }
+  { name: 'send_email_notification', type: 'INTEGER' },
+  { name: 'response_details', type: 'TEXT' },
+  { name: 'marked_by', type: 'TEXT' }
 ];
 
 const USER_COLUMNS = [

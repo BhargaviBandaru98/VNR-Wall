@@ -11,7 +11,7 @@ const { sendAdminAlert, sendUserNotification, verifyConnection } = require('./se
 console.log('[DIAGNOSTIC] Services loaded.');
 const app = express();
 const PORT = process.env.PORT || 6105;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3105';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:2999';
 
 app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
@@ -53,38 +53,28 @@ const db = new sqlite3.Database('./database.db', (err) => {
   });
 });
 
-// Create users table
+// Create users table (active fields only)
+// Legacy columns (roll, branch, year, contact) may still exist in
+// the live database but are not part of the current login/upsert flow.
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    roll TEXT,
-    branch TEXT,
-    year TEXT,
-    contact TEXT
+    name TEXT
   )
 `, (err) => {
   if (err) console.error("❌ Error creating users table:", err.message);
   else console.log("✅ Users table ready.");
 });
 
-// Create datacheck table
+// Create datacheck table (active forensic fields only)
+// Legacy columns (name, roll, branch, year, contact, platform, sender,
+// category, flags, responded, genuineRating) may still exist in
+// the live database but are not part of the current submission flow.
 db.run(`
   CREATE TABLE IF NOT EXISTS datacheck (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    roll TEXT,
-    branch TEXT,
-    year TEXT,
     dateReceived TEXT,
-    platform TEXT,
-    sender TEXT,
-    contact TEXT,
-    category TEXT,
-    flags TEXT,
-    responded TEXT,
     personalDetails TEXT,
-    genuineRating TEXT,
     message TEXT,
     status TEXT
   )
@@ -159,7 +149,7 @@ app.post('/api/user-check-data', (req, res) => {
 
           await new Promise((resolve) => {
             db.run(
-              `UPDATE datacheck SET status = ?, ai_score = ?, ai_result = ?, ai_confidence = ?, ai_evidence = ?, genuine_evidence = ?, risk_level = ?, protective_guidance = ?, is_expired = ?, ai_checked = 1, ai_last_checked = datetime('now') WHERE id = ?`,
+              `UPDATE datacheck SET status = ?, ai_score = ?, ai_result = ?, ai_confidence = ?, ai_evidence = ?, genuine_evidence = ?, risk_level = ?, protective_guidance = ?, is_expired = ?, ai_checked = 1, ai_last_checked = datetime('now'), marked_by = 'auto' WHERE id = ?`,
               [
                 existingResult.status, existingResult.ai_score, existingResult.ai_result,
                 existingResult.ai_confidence, cachedEvidence, existingResult.genuine_evidence,
@@ -185,7 +175,7 @@ app.post('/api/user-check-data', (req, res) => {
           investigationPath.push(`Web Risk BLOCKED (${webRisk.threatType})`);
           const evidence = `BLOCKED: URL flagged by Google Web Risk as ${webRisk.threatType}. URL: ${webRisk.url} | Investigation: ${investigationPath.join(' → ')}`;
           db.run(
-            `UPDATE datacheck SET ai_score=100, ai_result='SCAM', ai_confidence='HIGH', ai_evidence=?, ai_checked=1, ai_last_checked=datetime('now'), status='Scam' WHERE id=?`,
+            `UPDATE datacheck SET ai_score=100, ai_result='SCAM', ai_confidence='HIGH', ai_evidence=?, ai_checked=1, ai_last_checked=datetime('now'), status='Scam', marked_by='auto' WHERE id=?`,
             [evidence, newId],
             (e) => e ? console.error('[Stage 0] DB update failed:', e.message) : console.log('[Stage 0] ✅ Blocked & saved for ID:', newId)
           );
@@ -273,7 +263,7 @@ app.post('/api/user-check-data', (req, res) => {
 
             // Auto-mark Genuine if genuine score dominates
             if (genuineScore > scamScore) {
-              db.run(`UPDATE datacheck SET status = 'Genuine' WHERE id = ?`, [newId], (e) => {
+              db.run(`UPDATE datacheck SET status = 'Genuine', marked_by = 'auto' WHERE id = ?`, [newId], (e) => {
                 if (e) console.error('[Stage D] Auto-mark GENUINE failed:', e.message);
                 else {
                   console.log('[Stage D] ✅ Auto-marked GENUINE for ID:', newId, '(genuine', genuineScore, '> scam', scamScore + ')');
@@ -286,7 +276,7 @@ app.post('/api/user-check-data', (req, res) => {
 
             // Auto-mark Scam if score >= 80
             if (scamScore >= 80 && genuineScore <= scamScore) {
-              db.run(`UPDATE datacheck SET status = 'Scam' WHERE id = ?`, [newId], (e) => {
+              db.run(`UPDATE datacheck SET status = 'Scam', marked_by = 'auto' WHERE id = ?`, [newId], (e) => {
                 if (e) console.error('[Stage D] Auto-mark SCAM failed:', e.message);
                 else {
                   console.log('[Stage D] ✅ Auto-marked SCAM (>=80) for ID:', newId);
@@ -367,7 +357,7 @@ app.get('/api/admin/analytics', (req, res) => {
           analytics.totalUsers = countRow.total;
 
           // 5. Workflow Tracking (Datacheck stats)
-          db.all('SELECT status, ai_score, genuineRating FROM datacheck', (err, cases) => {
+          db.all('SELECT status, marked_by FROM datacheck', (err, cases) => {
             if (err) return res.status(500).send(err.message);
 
             let totalInvestigations = cases.length;
@@ -380,13 +370,11 @@ app.get('/api/admin/analytics', (req, res) => {
               if (status === 'null' || status === 'inreview') {
                 pendingManual++;
               } else if (status === 'genuine' || status === 'scam') {
-                // Determine if it was auto-marked based on our backend logic rules
-                const scamScore = parseInt(c.ai_score) || 0;
-                const genuineScore = parseInt(c.genuineRating) || 0;
-                if ((genuineScore > scamScore) || (scamScore >= 80 && genuineScore <= scamScore)) {
-                  autoVerifications++;
-                } else {
+                if (c.marked_by === 'admin') {
                   completedManual++;
+                } else {
+                  // marked_by === 'auto' or NULL (legacy rows)
+                  autoVerifications++;
                 }
               }
             });
@@ -475,7 +463,7 @@ app.put('/api/update-status/:id', (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  const sql = `UPDATE datacheck SET status = ? WHERE id = ? `;
+  const sql = `UPDATE datacheck SET status = ?, marked_by = 'admin' WHERE id = ? `;
   db.run(sql, [status, id], function (err) {
     if (err) {
       console.error("❌ Error updating status:", err.message);

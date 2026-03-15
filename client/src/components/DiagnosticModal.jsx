@@ -10,6 +10,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [notifyEnabled, setNotifyEnabled] = useState(false);
     const [notifyLoading, setNotifyLoading] = useState(false);
+    const [showRescue, setShowRescue] = useState(false);
 
     if (!isOpen) return null;
 
@@ -38,6 +39,14 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
             alert("Failed to enable notification. Please try again.");
         } finally {
             setNotifyLoading(false);
+        }
+    };
+
+    const handleProceedToApply = () => {
+        const text = data.message || data.messageContent || '';
+        const urlMatch = text.match(/https?:\/\/[^\s]+/i);
+        if (urlMatch) {
+            window.open(urlMatch[0], '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -137,13 +146,41 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                         </button>
                     )}
                     {isScam && data.risk_level?.toUpperCase() === 'CRITICAL' && (
-                        <button className="rescue-btn">
-                            <span>WHAT DO I DO NOW?</span>
+                        <button className="rescue-btn" onClick={() => setShowRescue(!showRescue)}>
+                            <span>{showRescue ? 'HIDE RESCUE STEPS' : 'WHAT DO I DO NOW?'}</span>
                             <ArrowRight size={18} />
                         </button>
                     )}
+                    {showRescue && isScam && data.risk_level?.toUpperCase() === 'CRITICAL' && (
+                        <div className="rescue-panel" style={{ width: '100%', background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '1.5rem', marginTop: '1rem', marginBottom: '1rem' }}>
+                            <h4 style={{ color: '#dc2626', margin: '0 0 1rem', fontSize: '1rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                🚨 IMMEDIATE RESCUE STEPS
+                            </h4>
+                            <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#991b1b', lineHeight: '2', fontSize: '0.95rem' }}>
+                                {data.protective_guidance ? (
+                                    (() => {
+                                        try {
+                                            const parsed = typeof data.protective_guidance === 'string' ? JSON.parse(data.protective_guidance) : data.protective_guidance;
+                                            return Array.isArray(parsed) && parsed.length > 0
+                                                ? parsed.map((tip, idx) => <li key={idx} style={{ marginBottom: '0.5rem' }}>{tip}</li>)
+                                                : <li>Contact your institution's administration immediately for assistance.</li>;
+                                        } catch {
+                                            return <li>{data.protective_guidance}</li>;
+                                        }
+                                    })()
+                                ) : (
+                                    <>
+                                        <li>Do not pay any fees or share bank details.</li>
+                                        <li>Block the sender on all platforms immediately.</li>
+                                        <li>Report this to your institution's cybercell or administration.</li>
+                                        <li>If you shared credentials, change all passwords immediately.</li>
+                                    </>
+                                )}
+                            </ul>
+                        </div>
+                    )}
                     {isGenuine && (
-                        <button className="rescue-btn" style={{ background: '#10b981', boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)' }}>
+                        <button className="rescue-btn" style={{ background: '#10b981', boxShadow: '0 10px 20px -5px rgba(16, 185, 129, 0.4)' }} onClick={handleProceedToApply}>
                             <span>PROCEED TO APPLY / VIEW OFFICIAL LINK</span>
                             <ArrowRight size={18} />
                         </button>

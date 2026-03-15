@@ -95,8 +95,8 @@ const Login = () => {
     // const clientId = "454432176985-mau86u28qd49dd3n2hfeh7mpi75qlse5.apps.googleusercontent.com";
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-    // ✅ FIXED: Use current origin to ensure exact match with Google Cloud Console configuration
-    const redirectUri = `${window.location.origin}/login`;
+    // ✅ FIXED: Explicitly set to port 2999 to eliminate mismatch errors
+    const redirectUri = "http://localhost:2999/login";
 
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 
