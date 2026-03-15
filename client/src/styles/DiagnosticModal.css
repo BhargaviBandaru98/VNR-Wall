@@ -277,3 +277,80 @@
         gap: 1rem;
     }
 }
+
+/* ── Phase 1: Verdict Banner (Cases A / B / C) ───────────────────────────── */
+.verdict-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.2rem;
+    padding: 1.2rem 1.5rem;
+    border-radius: 14px;
+    margin-bottom: 2rem;
+    border: 2px solid transparent;
+    animation: bannerSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bannerSlide {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.verdict-banner--scam {
+    background: rgba(254, 226, 226, 0.7);
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
+.verdict-banner--genuine {
+    background: rgba(220, 252, 231, 0.7);
+    border-color: #22c55e;
+    color: #14532d;
+}
+
+.verdict-banner--review {
+    background: rgba(219, 234, 254, 0.7);
+    border-color: #3b82f6;
+    color: #1e3a8a;
+}
+
+[data-theme='dark'] .verdict-banner--scam {
+    background: rgba(127, 29, 29, 0.3);
+    border-color: #f87171;
+    color: #fca5a5;
+}
+
+[data-theme='dark'] .verdict-banner--genuine {
+    background: rgba(20, 83, 45, 0.3);
+    border-color: #4ade80;
+    color: #86efac;
+}
+
+[data-theme='dark'] .verdict-banner--review {
+    background: rgba(30, 58, 138, 0.3);
+    border-color: #60a5fa;
+    color: #bfdbfe;
+}
+
+.verdict-banner__headline {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem;
+}
+
+.verdict-banner__sub {
+    font-size: 0.9rem;
+    margin: 0;
+    opacity: 0.85;
+}
+
+/* ── Phase 2: Notify-Me button variant ───────────────────────────────────── */
+.notify-me-btn {
+    background: #2563eb;
+    box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+}
+
+.notify-me-btn:disabled {
+    opacity: 0.85;
+    cursor: default !important;
+    transform: none !important;
+}
