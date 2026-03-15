@@ -67,7 +67,7 @@
 .card button {
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   color: white;
-  font-family: 'gilroy-semiBold';
+  font-family: 'Outfit', sans-serif;
   font-size:clamp(1rem,1.5vw,2rem);
   letter-spacing: 1px;
   border: none;
