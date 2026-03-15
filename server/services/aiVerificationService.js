@@ -17,8 +17,12 @@ const groq = new Groq({ apiKey });
  * @param {string} text           - Original message text
  * @param {string} [pageContent]  - Firecrawl scraped content
  * @param {Array}  [officialLinks] - [{title, link}] from Serper
+ * @param {string} personalDetails
+ * @param {string} dateReceived
+ * @param {Array}  learningRules
+ * @param {Object} campaignContext
  */
-async function verifyMessageWithAI(text, pageContent = '', officialLinks = [], personalDetails = '', dateReceived = '') {
+async function verifyMessageWithAI(text, pageContent = '', officialLinks = [], personalDetails = '', dateReceived = '', learningRules = [], campaignContext = null) {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
         return {
             scam_score: 50, genuine_score: 50,
@@ -68,6 +72,23 @@ ${personalDetails ? `USER SHARED PERSONAL DETAILS: The user explicitly stated th
 ${dateReceived ? `MESSAGE RECEIVED DATE: The user received this opportunity on ${dateReceived}` : ''}
 ${domainMatchInfo ? `DOMAIN ANALYSIS: ${domainMatchInfo}` : ''}
 
+--- ADMIN LEARNING RULES ---
+${learningRules && learningRules.length > 0 ? 
+    learningRules.map((r, i) => `RULE_${i+1}:
+Pattern: ${r.pattern}
+Decision: ${r.admin_decision}
+Reason: ${r.admin_reason}`).join('\n\n') 
+    : 'No specific learning rules available for this session.'
+}
+
+--- SCAM CAMPAIGN CONTEXT ---
+${campaignContext && campaignContext.matchFound ? 
+    `ALERT: Possible Scam Campaign Detected!
+Reason: ${campaignContext.reason}
+Repeated Indicators: ${campaignContext.indicators.join(', ')}`
+    : 'No repeated campaign patterns detected across previous submissions.'
+}
+
 --- INTELLIGENCE RULES ---
 1. TRUST HIERARCHY (CRITICAL): Verified official portals (e.g., careers.google.com, joinwipro.com) found via Serper/Firecrawl are the HIGHEST trust signal. If the message link matches an official domain, reduce scam_score significantly.
 2. PSYCHOLOGICAL MANIPULATION: Detect FOMO, extreme urgency (e.g., "Last 1 hour," "Limited spots"), and emotional pressure.
@@ -77,6 +98,8 @@ ${domainMatchInfo ? `DOMAIN ANALYSIS: ${domainMatchInfo}` : ''}
 6. COMMUNICATION ANALYSIS: Flag the use of personal Gmail/Yahoo/Hotmail accounts for official corporate offers.
 7. PLATFORM ANOMALY: Flag hiring processes restricted solely to WhatsApp, Telegram, or Google Forms if the company is an MNC.
 8. EXPIRY ANALYSIS: Compare the "MESSAGE RECEIVED DATE" with any deadlines, dates, or expired offers found in the content or web searches. If the opportunity is realistically expired or the date is ancient compared to the timeline of the post, return is_expired: true.
+9. LEARNING RULE WEIGHTING (CRITICAL): If the message matches an "ADMIN LEARNING RULE" Pattern, you MUST prioritize the Admin's Decision. If the rule says SCAM, increase scam_score to 95+. If it says GENUINE, increase genuine_score to 95+.
+10. CAMPAIGN REINFORCEMENT: If "SCAM CAMPAIGN CONTEXT" indicates a match, increase scam_score and mention "Campaign Detected" in the evidence.
 
 --- SCORING & OUTPUT ---
 - Simultaneously compute BOTH a scam_score AND a genuine_score (0-100).

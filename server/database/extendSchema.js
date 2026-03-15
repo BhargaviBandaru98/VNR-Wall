@@ -38,7 +38,9 @@ const DATACHECK_COLUMNS = [
   { name: 'verified_by_admin',       type: 'INTEGER' }, // 1 when admin has reviewed
   { name: 'verification_timestamp',  type: 'TEXT'    }, // datetime() when admin verified
   { name: 'admin_reason',            type: 'TEXT'    }, // optional note from admin
-
+  // Phase 9: Scam Campaign Detection
+  { name: 'campaign_match',          type: 'INTEGER', default: 0 },
+  { name: 'matched_pattern',         type: 'TEXT'    },
   // genuine_score: stored alongside ai_score to avoid re-computation
   { name: 'genuine_score',           type: 'INTEGER' },
 ];

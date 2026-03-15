@@ -210,44 +210,82 @@ app.post('/api/user-check-data', (req, res) => {
         ]);
         console.log('[Stage B] Official links:', officialLinks.length, '| Page chars:', pageContent.length);
 
-        // ─── STAGE C: Groq AI with all 3 evidence sources ────────────────────
-        console.log('[Stage C] Groq AI with all evidence...');
+        // ─── STAGE B.5: Intelligence Gathering (Phases 7, 8 & 9) ───────────────
+        console.log('[Stage B.5] Fetching intelligence context...');
+        
+        const [learningRules, campaignContext] = await Promise.all([
+          // 1. Fetch active rules (Phase 7)
+          new Promise(resolve => {
+            db.all(`SELECT * FROM agent_learning_rules WHERE is_active = 1 ORDER BY created_at DESC LIMIT 20`, (err, rows) => resolve(rows || []));
+          }),
+          // 2. Campaign Detection (Phase 9)
+          new Promise(resolve => {
+            const upiMatch = message.match(/[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/g) || [];
+            const phoneMatch = message.match(/(\+?\d{1,4}[\s-])?\d{10}/g) || [];
+            const urlMatches = message.match(/https?:\/\/[^\s"'<>()\[\],]+/gi) || [];
+            const indicators = [...new Set([...upiMatch, ...phoneMatch, ...urlMatches])];
+
+            if (indicators.length === 0) return resolve({ matchFound: false, indicators: [] });
+
+            const placeholders = indicators.map(() => 'message LIKE ?').join(' OR ');
+            const params = indicators.map(ind => `%${ind}%`);
+            
+            db.all(`SELECT id, status, message FROM datacheck WHERE id != ? AND (${placeholders}) LIMIT 10`, [newId, ...params], (err, rows) => {
+              if (err || !rows || rows.length === 0) return resolve({ matchFound: false, indicators: [] });
+              
+              const matchedValues = indicators.filter(ind => rows.some(r => r.message.includes(ind)));
+              const scamMatches = rows.filter(r => r.status === 'Scam' || r.ai_result === 'SCAM');
+              
+              resolve({
+                matchFound: matchedValues.length > 0,
+                reason: scamMatches.length > 0 ? 'Indicator matched previous SCAM submissions.' : 'Repeated activity detected across multiple submissions.',
+                indicators: matchedValues
+              });
+            });
+          })
+        ]);
+
+        // Phase 8: Scoring Reinforcement — Explicit Pattern Matching
+        const matchedLearningRules = (learningRules || []).filter(r => 
+          r.pattern && message.toLowerCase().includes(r.pattern.toLowerCase())
+        );
+        if (matchedLearningRules.length > 0) {
+          campaignContext.matchFound = true;
+          campaignContext.reason = (campaignContext.reason || '') + ` | Matched Admin Rule: ${matchedLearningRules[0].pattern}`;
+          campaignContext.indicators = campaignContext.indicators || [];
+          campaignContext.indicators.push(`LEARNED_RULE:${matchedLearningRules[0].pattern}`);
+        }
+
+        // ─── STAGE C: Groq AI with all evidence ───────────────────────────────
+        console.log('[Stage C] Groq AI with augmented intelligence...');
 
         let combinedDetails = personalDetails;
         if ((personalDetails === 'Yes' || personalDetails === 'Mention') && responseDetails) {
           combinedDetails = `${personalDetails} - ${responseDetails}`;
         }
 
-        const aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived);
+        const aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived, learningRules, campaignContext);
         console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Result:', aiResult.result, '| Confidence:', aiResult.confidence);
-        console.log('[Stage C] Scam Evidence:', aiResult.evidence);
-        console.log('[Stage C] Genuine Evidence:', aiResult.genuine_evidence);
+        console.log('[Stage C] Evidence:', aiResult.evidence);
+        
         investigationPath.push('AI Investigated');
+        if (campaignContext.matchFound) investigationPath.push('Learning Reinforced');
 
         // ─── STAGE D: Determine status & save ─────────────────────────────────
         const scamScore = aiResult.scam_score;
         const genuineScore = aiResult.genuine_score || 0;
-        let finalStatus = 'null'; // In Review by default
+        let finalStatus = 'null';
 
-        // Branch 1: Genuine score dominates → auto-mark Genuine
         if (genuineScore > scamScore) {
           finalStatus = 'Genuine';
           investigationPath.push('Auto-marked Genuine');
-          console.log('[Stage D] ✅ Genuine dominates — auto-marking Genuine. Score:', genuineScore, '>', scamScore);
-
-          // Branch 2: High scam score → auto-mark Scam
         } else if (scamScore >= 80) {
           finalStatus = 'Scam';
           investigationPath.push('Auto-marked Scam');
-
-          // Branch 3: Borderline scam → In Review + admin alert
         } else if (scamScore >= 60) {
-          finalStatus = 'null'; // Keep as In Review
-          investigationPath.push('Admin Notified');
+          investigationPath.push('Admin Review Triggered');
         }
-        // Branch 4: Low fake score, genuine not dominant → In Review (no action)
 
-        // Build final evidence string — include both scores, genuine evidence, risk level, and guidance
         const riskPrefix = aiResult.risk_level ? `[${aiResult.risk_level.toUpperCase()}] ` : '';
         const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
           ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
@@ -257,27 +295,26 @@ app.post('/api/user-check-data', (req, res) => {
           ? `${riskPrefix}GENUINE: ${aiResult.genuine_evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`
           : `${riskPrefix}${aiResult.evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
 
-        // Save AI results to DB
         const guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
           ? JSON.stringify(aiResult.protective_guidance)
           : null;
 
-        // Determine submission_status for Phase 2.7
-        // submission_status = AI_VERIFIED when AI has a confident verdict
-        // submission_status = IN_REVIEW when AI is inconclusive
-        const submissionStatus =
-          (genuineScore >= 70 || scamScore >= 70) ? 'AI_VERIFIED' : 'IN_REVIEW';
+        const submissionStatus = (genuineScore >= 70 || scamScore >= 70) ? 'AI_VERIFIED' : 'IN_REVIEW';
 
         db.run(
           `UPDATE datacheck
            SET ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?,
                risk_level=?, protective_guidance=?, is_expired=?,
                ai_checked=1, ai_last_checked=datetime('now'),
-               genuine_score=?, submission_status=?
+               genuine_score=?, submission_status=?,
+               campaign_match=?, matched_pattern=?
            WHERE id=?`,
           [scamScore, aiResult.result, aiResult.confidence, finalEvidence, aiResult.genuine_evidence,
            aiResult.risk_level, guidanceStr, aiResult.is_expired ? 1 : 0,
-           genuineScore, submissionStatus, newId],
+           genuineScore, submissionStatus,
+           campaignContext.matchFound ? 1 : 0, 
+           campaignContext.matchFound ? campaignContext.indicators.join(', ') : null,
+           newId],
           (updateErr) => {
             if (updateErr) {
               console.error('[Stage D] DB update failed:', updateErr.message);
@@ -285,41 +322,26 @@ app.post('/api/user-check-data', (req, res) => {
             }
             console.log('[Stage D] ✅ AI results saved for ID:', newId);
 
-            // Auto-mark Genuine if genuine score dominates
+            // AUTO-VERIFICATION LOGIC
             if (genuineScore > scamScore) {
               db.run(`UPDATE datacheck SET status = 'Genuine', marked_by = 'auto' WHERE id = ?`, [newId], (e) => {
-                if (e) console.error('[Stage D] Auto-mark GENUINE failed:', e.message);
-                else {
-                  console.log('[Stage D] ✅ Auto-marked GENUINE for ID:', newId, '(genuine', genuineScore, '> scam', scamScore + ')');
-                  if (notifyFlag && userEmail) {
-                    sendUserNotification(userEmail, { id: newId, status: 'Genuine', ai_score: scamScore, ai_result: aiResult.result, ai_confidence: aiResult.confidence, ai_evidence: finalEvidence, genuine_evidence: aiResult.genuine_evidence, risk_level: aiResult.risk_level, protective_guidance: guidanceStr });
-                  }
-                }
+                if (!e && notifyFlag && userEmail) sendUserNotification(userEmail, { id: newId, status: 'Genuine', ...aiResult, ai_evidence: finalEvidence });
               });
             }
 
-            // Auto-mark Scam if score >= 80
             if (scamScore >= 80 && genuineScore <= scamScore) {
               db.run(`UPDATE datacheck SET status = 'Scam', marked_by = 'auto' WHERE id = ?`, [newId], (e) => {
-                if (e) console.error('[Stage D] Auto-mark SCAM failed:', e.message);
-                else {
-                  console.log('[Stage D] ✅ Auto-marked SCAM (>=80) for ID:', newId);
-                  if (notifyFlag && userEmail) {
-                    sendUserNotification(userEmail, { id: newId, status: 'Scam', ai_score: scamScore, ai_result: aiResult.result, ai_confidence: aiResult.confidence, ai_evidence: finalEvidence, genuine_evidence: aiResult.genuine_evidence, risk_level: aiResult.risk_level, protective_guidance: guidanceStr });
-                  }
-                }
+                if (!e && notifyFlag && userEmail) sendUserNotification(userEmail, { id: newId, status: 'Scam', ...aiResult, ai_evidence: finalEvidence });
               });
             }
 
-            // Send admin alert if scam score is 60-79 and not dominated by genuine score
             if (scamScore >= 60 && scamScore < 80 && genuineScore <= scamScore) {
-              const alertResult = { ...aiResult, evidence: finalEvidence };
-              sendAdminAlert(submissionData, alertResult, investigationPath.join(' → '))
-                .then(() => console.log('[Stage D] ✅ Admin alert sent for ID:', newId))
+              sendAdminAlert(submissionData, { ...aiResult, evidence: finalEvidence }, investigationPath.join(' → '))
                 .catch(e => console.error('[Stage D] Admin alert failed:', e.message));
             }
           }
         );
+
 
         console.log('====== PIPELINE END: ID', newId, '| Scam:', scamScore, '| Genuine:', genuineScore, '| Status:', finalStatus, '======\n');
 

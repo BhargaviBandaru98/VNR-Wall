@@ -44,6 +44,17 @@ const AdminReviewCard = ({ data, onVerictSubmitted }) => {
             </div>
           </section>
 
+          {data.campaign_match === 1 && (
+            <section className="review-section campaign-alert">
+              <h4 className="section-label alert-header">
+                <AlertTriangle size={14} /> SCAM CAMPAIGN DETECTED
+              </h4>
+              <div className="campaign-indicators">
+                Matched Indicators: <span>{data.matched_pattern}</span>
+              </div>
+            </section>
+          )}
+
           <div className="evidence-grid">
             <section className="review-section">
               <h4 className="section-label">🔴 AI Scam Evidence</h4>

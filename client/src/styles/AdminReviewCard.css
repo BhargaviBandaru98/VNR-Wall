@@ -79,6 +79,35 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+[data-theme='dark'] .campaign-alert {
+  background: rgba(255, 68, 68, 0.1);
+  border-left: 4px solid #ff4444;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.alert-header {
+  color: #ff4444;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 700 !important;
+  font-size: 0.8rem !important;
+  letter-spacing: 0.05em;
+}
+
+.campaign-indicators {
+  font-size: 0.9rem;
+  color: #ff8888;
+}
+
+.campaign-indicators span {
+  font-weight: 600;
+  color: #fff;
+}
+
 .evidence-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
