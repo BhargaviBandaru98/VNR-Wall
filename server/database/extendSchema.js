@@ -5,20 +5,42 @@
  */
 
 const DATACHECK_COLUMNS = [
-  { name: 'ai_score', type: 'INTEGER' },
-  { name: 'ai_result', type: 'TEXT' },
-  { name: 'ai_checked', type: 'TEXT' },
-  { name: 'ai_confidence', type: 'TEXT' },
-  { name: 'ai_last_checked', type: 'TEXT' },
-  { name: 'ai_evidence', type: 'TEXT' },
-  { name: 'genuine_evidence', type: 'TEXT' },
-  { name: 'risk_level', type: 'TEXT' },
-  { name: 'protective_guidance', type: 'TEXT' },
-  { name: 'user_email', type: 'TEXT' }, // Added for user sync
-  { name: 'is_expired', type: 'INTEGER' },
-  { name: 'send_email_notification', type: 'INTEGER' },
-  { name: 'response_details', type: 'TEXT' },
-  { name: 'marked_by', type: 'TEXT' }
+  // ── Original AI verification fields ──────────────────────────────────────
+  { name: 'ai_score',                type: 'INTEGER' },
+  { name: 'ai_result',               type: 'TEXT'    }, // Raw AI decision: SCAM | GENUINE | UNKNOWN
+  { name: 'ai_checked',              type: 'INTEGER' }, // 1 when AI has processed
+  { name: 'ai_confidence',           type: 'TEXT'    }, // HIGH | MEDIUM | LOW
+  { name: 'ai_last_checked',         type: 'TEXT'    },
+  { name: 'ai_evidence',             type: 'TEXT'    }, // Scam forensic detail
+  { name: 'genuine_evidence',        type: 'TEXT'    }, // Authenticity forensic detail
+  { name: 'risk_level',              type: 'TEXT'    },
+  { name: 'protective_guidance',     type: 'TEXT'    }, // JSON array of safety tips
+  { name: 'user_email',              type: 'TEXT'    },
+  { name: 'is_expired',              type: 'INTEGER' },
+  { name: 'send_email_notification', type: 'INTEGER' }, // Checkbox at submission
+  { name: 'response_details',        type: 'TEXT'    },
+  { name: 'marked_by',               type: 'TEXT'    },
+
+  // ── Phase 2.7: Verification State Fields ─────────────────────────────────
+  // submission_status tracks the WORKFLOW state (not the verdict)
+  // Values: AI_VERIFIED | IN_REVIEW | ADMIN_VERIFIED
+  { name: 'submission_status',       type: 'TEXT'    },
+
+  // notification_requested: set to 1 when user clicks Notify Me in modal
+  // (send_email_notification covers the checkbox at form submission)
+  { name: 'notification_requested',  type: 'INTEGER', default: 0 },
+
+  // final_result: stores ADMIN's final decision, separate from ai_result
+  // so analytics can track AI accuracy vs admin overrides
+  { name: 'final_result',            type: 'TEXT'    }, // SCAM | GENUINE | IN_REVIEW
+
+  // Admin audit trail
+  { name: 'verified_by_admin',       type: 'INTEGER' }, // 1 when admin has reviewed
+  { name: 'verification_timestamp',  type: 'TEXT'    }, // datetime() when admin verified
+  { name: 'admin_reason',            type: 'TEXT'    }, // optional note from admin
+
+  // genuine_score: stored alongside ai_score to avoid re-computation
+  { name: 'genuine_score',           type: 'INTEGER' },
 ];
 
 const USER_COLUMNS = [

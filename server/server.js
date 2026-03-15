@@ -123,7 +123,19 @@ app.post('/api/user-check-data', (req, res) => {
         console.log('\n====== PIPELINE START: ID', newId, '======');
         const submissionData = { id: newId, message };
 
-        // ─── Phase 6d: Deduplication (Cache) Layer ────────────────────────────
+        // ─── Phase 2.7: Skip AI if admin already verified this submission ─────────
+        const existingSubmission = await new Promise((resolve) => {
+          db.get(`SELECT submission_status FROM datacheck WHERE id = ?`, [newId], (err, row) => {
+            resolve(err ? null : row);
+          });
+        });
+
+        if (existingSubmission?.submission_status === 'ADMIN_VERIFIED') {
+          console.log('[Pipeline] ⚠️  Submission', newId, 'is ADMIN_VERIFIED — skipping AI re-verification.');
+          return;
+        }
+
+        // ─── Phase 6d: Deduplication (Cache) Layer ─────────────────────────────────
         console.log('[Deduplication] Checking for existing identical message...');
         const duplicateCheckSql = `
           SELECT id, status, ai_score, ai_result, ai_confidence, ai_evidence, genuine_evidence, risk_level, protective_guidance, is_expired
@@ -251,9 +263,22 @@ app.post('/api/user-check-data', (req, res) => {
           ? JSON.stringify(aiResult.protective_guidance)
           : null;
 
+        // Determine submission_status for Phase 2.7
+        // submission_status = AI_VERIFIED when AI has a confident verdict
+        // submission_status = IN_REVIEW when AI is inconclusive
+        const submissionStatus =
+          (genuineScore >= 70 || scamScore >= 70) ? 'AI_VERIFIED' : 'IN_REVIEW';
+
         db.run(
-          `UPDATE datacheck SET ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?, risk_level=?, protective_guidance=?, is_expired=?, ai_checked=1, ai_last_checked=datetime('now') WHERE id=?`,
-          [scamScore, aiResult.result, aiResult.confidence, finalEvidence, aiResult.genuine_evidence, aiResult.risk_level, guidanceStr, aiResult.is_expired ? 1 : 0, newId],
+          `UPDATE datacheck
+           SET ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?,
+               risk_level=?, protective_guidance=?, is_expired=?,
+               ai_checked=1, ai_last_checked=datetime('now'),
+               genuine_score=?, submission_status=?
+           WHERE id=?`,
+          [scamScore, aiResult.result, aiResult.confidence, finalEvidence, aiResult.genuine_evidence,
+           aiResult.risk_level, guidanceStr, aiResult.is_expired ? 1 : 0,
+           genuineScore, submissionStatus, newId],
           (updateErr) => {
             if (updateErr) {
               console.error('[Stage D] DB update failed:', updateErr.message);
@@ -482,13 +507,18 @@ app.put('/api/update-status/:id', (req, res) => {
   });
 });
 
-// Enable Notification for In-Review submissions
+// Enable Notification for In-Review submissions (Phase 2 + 2.7)
 app.put('/api/notify-request/:id', (req, res) => {
   const { id } = req.params;
-  const sql = `UPDATE datacheck SET send_email_notification = 1 WHERE id = ?`;
+  // Sets BOTH flags:
+  //  send_email_notification = 1  (existing flow, triggers email on status change)
+  //  notification_requested  = 1  (Phase 2.7 explicit request flag for analytics & dedup)
+  const sql = `UPDATE datacheck
+               SET send_email_notification = 1, notification_requested = 1
+               WHERE id = ?`;
   db.run(sql, [id], function (err) {
     if (err) {
-      console.error("❌ Error updating notification request:", err.message);
+      console.error('❌ Error updating notification request:', err.message);
       return res.status(500).send(err.message);
     }
     console.log(`✅ Notification enabled for ID ${id}`);
