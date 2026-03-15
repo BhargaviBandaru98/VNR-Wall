@@ -11,7 +11,7 @@
 }
 
 .admin-header h1 {
-    font-family: 'gilroy-black';
+    font-family: 'Outfit', sans-serif;
     font-size: 2.5rem;
     background: var(--gradient-primary);
     -webkit-background-clip: text;
@@ -68,7 +68,7 @@
 .stat-value {
     display: block;
     font-size: 2rem;
-    font-family: 'gilroy-black';
+    font-family: 'Outfit', sans-serif;
     color: var(--text-primary);
 }
 
@@ -94,7 +94,7 @@
 }
 
 .chart-header h3 {
-    font-family: 'gilroy-bold';
+    font-family: 'Outfit', sans-serif;
     font-size: 1.2rem;
 }
 
@@ -142,7 +142,7 @@
 }
 
 .college-tracking h3 {
-    font-family: 'gilroy-bold';
+    font-family: 'Outfit', sans-serif;
     margin-bottom: 1.5rem;
 }
 
@@ -167,14 +167,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'gilroy-bold';
+    font-family: 'Outfit', sans-serif;
     font-size: 1.2rem;
     color: #2563eb;
 }
 
 /* Phase 13 Workflow Tracker Styles */
 .section-title {
-    font-family: 'gilroy-bold';
+    font-family: 'Outfit', sans-serif;
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
     margin-top: 2rem;
@@ -232,7 +232,7 @@
     bottom: 15px;
     right: 20px;
     font-size: 0.8rem;
-    font-family: 'gilroy-bold';
+    font-family: 'Outfit', sans-serif;
     color: #ef4444;
     opacity: 0;
     transform: translateX(-10px);

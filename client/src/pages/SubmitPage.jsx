@@ -165,6 +165,7 @@ const SubmitPage = () => {
                   name="dateReceived"
                   placeholder="dd-mm-yyyy"
                   value={formData.dateReceived}
+                  onChange={handleChange}
                   required
                 />
               </div>

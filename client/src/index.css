@@ -1,13 +1,9 @@
-font-face {
-  font-family: satoshi;
-  src: url('./assets/Satoshi-Black.ttf');
-}
 /* Reset and base styles */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: santoshi;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   scroll-behavior: smooth;
 }
 
@@ -78,7 +74,7 @@ body {
 
 /* Cards / Divs */
 .card {
-  background-color:white;
+  background-color: white;
   border-radius: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 2rem;
