@@ -2,6 +2,7 @@
 console.log('[DIAGNOSTIC] aiVerificationService.js loaded');
 
 const Groq = require('groq-sdk');
+const logger = require('../utils/logger');
 
 const apiKey = process.env.GROQ_API_KEY;
 if (!apiKey) {
@@ -9,6 +10,23 @@ if (!apiKey) {
 }
 
 const groq = new Groq({ apiKey });
+
+/** Phase 4: Standard fallback returned when Groq is unavailable or response is invalid. */
+const AI_FALLBACK = {
+    scam_score:        50,
+    genuine_score:     0,
+    risk_level:        'High',
+    result:            'SUSPICIOUS',
+    confidence:        'LOW',
+    status:            'unknown',
+    is_expired:        false,
+    evidence:          'AI unavailable — manual verification required.',
+    genuine_evidence:  'AI unavailable.',
+    protective_guidance: [
+        'Do not click any links until manually verified.',
+        'Contact university administration for confirmation.',
+    ],
+};
 
 /**
  * Verify a message using Groq AI with three data sources.
@@ -125,16 +143,39 @@ Return ONLY valid JSON:
 `;
 
     try {
-        const response = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0,
-            response_format: { type: 'json_object' }
-        });
+        const _aiStart = Date.now();
+        let response;
+        try {
+            response = await groq.chat.completions.create({
+                model: 'llama-3.3-70b-versatile',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0,
+                response_format: { type: 'json_object' },
+            }, { signal: AbortSignal.timeout(25_000) }); // Phase 4: 25 s hard timeout
+        } catch (timeoutErr) {
+            const isTimeout = timeoutErr.name === 'TimeoutError' || timeoutErr.message?.includes('timeout');
+            logger.logError(`[AI] Groq request ${isTimeout ? 'timed out' : 'network failed'}`, timeoutErr);
+            return { ...AI_FALLBACK, reason: isTimeout ? 'AI timeout' : 'AI network error' };
+        }
 
-        const raw = response.choices[0].message.content.trim();
+        const _aiMs = Date.now() - _aiStart;
+        logger.logInfo('[AI] Groq response received', { latencyMs: _aiMs, model: 'llama-3.3-70b-versatile' });
+
+        const raw = response.choices?.[0]?.message?.content?.trim() ?? '';
         console.log('AI RAW OUTPUT:', raw);
-        const parsed = JSON.parse(raw);
+
+        if (!raw) {
+            logger.logError('[AI] Groq returned empty response');
+            return { ...AI_FALLBACK, reason: 'AI empty response' };
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (jsonErr) {
+            logger.logError('[AI] Groq response is not valid JSON', { raw: raw.substring(0, 200) });
+            return { ...AI_FALLBACK, reason: 'AI invalid JSON' };
+        }
         console.log('AI PARSED RESULT:', parsed);
 
         // Map risk_level to results for internal logic compatibility
@@ -149,19 +190,13 @@ Return ONLY valid JSON:
             is_expired: !!parsed.is_expired,
             evidence: typeof parsed.ai_evidence === 'string' ? parsed.ai_evidence : 'No technical evidence provided.',
             genuine_evidence: typeof parsed.genuine_evidence === 'string' ? parsed.genuine_evidence : 'No genuine indicators found.',
-            protective_guidance: Array.isArray(parsed.protective_guidance) ? parsed.protective_guidance : []
+            protective_guidance: Array.isArray(parsed.protective_guidance) ? parsed.protective_guidance : [],
+            latencyMs: _aiMs // Added for Step 6 tracking
         };
 
     } catch (error) {
-        console.error('[aiVerificationService] Groq call failed:', error.message);
-        return {
-            scam_score: 50, genuine_score: 0,
-            risk_level: 'High',
-            result: 'SUSPICIOUS', confidence: 'LOW',
-            evidence: 'AI analysis system failure — manual verification required.',
-            genuine_evidence: 'AI analysis system failure.',
-            protective_guidance: ['Contact university administration', 'Do not click any links']
-        };
+        logger.logError('[AI] verifyMessageWithAI unexpected error', error);
+        return { ...AI_FALLBACK, reason: 'AI analysis system failure', latencyMs: 0 };
     }
 }
 

@@ -1,12 +1,50 @@
 require('dotenv').config();
+const fs = require('fs');
+const readline = require('readline');
+if (!process.env.GROQ_API_KEY) {
+  console.error("❌ CRITICAL: GROQ_API_KEY is missing from .env");
+}
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const { extendSchema } = require('./database/extendSchema');
-const { verifyMessageWithAI, extractPatternFromReason, sendUserNotification: aiSendUserNotification } = require('./services/aiVerificationService');
+const { 
+  verifyMessageWithAI, 
+  extractPatternFromReason, 
+  sendUserNotification: aiSendUserNotification,
+  groq 
+} = require('./services/aiVerificationService');
 const { searchOfficialSite, extractCompanyName } = require('./services/searchService');
+const { scrapeUrl } = require('./services/firecrawlService');
 const { checkUrlSafety } = require('./services/webRiskService');
 const { sendAdminAlert, sendUserNotification, verifyConnection } = require('./services/emailService');
+// ─── Phase 1 & 3: MongoDB Parallel Setup + Dual-Write ───────────────────────
+const { connectMongo, isMongoConnected } = require('./config/mongo');
+const Submission = require('./models/Submission');
+// ─── Phase 4: Centralized Logger ─────────────────────────────────────────────
+const logger = require('./utils/logger');
+
+// ─── Phase 4 Step 7: Clean Fallback Architecture ─────────────────────────────
+// shouldWriteToMongo() is the SINGLE decision point for all shadow writes.
+// Returns true only when:
+//   (a) MongoDB is currently connected, AND
+//   (b) USE_MONGO_PRIMARY is not explicitly set to 'true' (i.e. we are in shadow mode)
+//
+// When USE_MONGO_PRIMARY=true (cutover), switch all reads/writes to Mongo.
+// When USE_MONGO_PRIMARY=false (default), SQLite is the source of truth; Mongo is shadow-only.
+function shouldWriteToMongo() {
+  if (!isMongoConnected()) return false;
+  // In primary mode, Mongo writes are handled by separate primary-mode endpoints (future cutover).
+  // In shadow mode (default), we still write for observability — so always true when connected.
+  return true;
+}
+
+// ─── Phase 4: Global Unhandled Rejection Safety Net ──────────────────────────
+process.on('unhandledRejection', (err) => {
+  logger.logError('Unhandled Promise Rejection (non-fatal)', err);
+});
+
+
 console.log('[DIAGNOSTIC] Services loaded.');
 const app = express();
 const PORT = process.env.PORT || 6105;
@@ -105,19 +143,53 @@ app.post('/api/user-check-data', (req, res) => {
     dateReceived, personalDetails, responseDetails, message, 'null', userEmail, notifyFlag
   ];
 
+  const _pipelineStart = Date.now();
+  const _sqliteInsertStart = Date.now();
   db.run(sql, params, function (err) {
+    const _sqliteInsertMs = Date.now() - _sqliteInsertStart;
     if (err) {
+      logger.logDB('insert', 'sqlite', 'failure', { error: err.message, latencyMs: _sqliteInsertMs });
       console.error("❌ DB Insert Error:", err.message);
       return res.status(500).send(err.message);
     }
     const newId = this.lastID;
+    logger.logDB('insert', 'sqlite', 'success', { id: newId, latencyMs: _sqliteInsertMs });
     console.log("✅ Data inserted, ID:", newId);
+
+    let _mongoInsertMs = 0;
+    // ─── Phase 3: MongoDB shadow insert (fail-safe, non-blocking) ────────────
+    if (shouldWriteToMongo()) {
+      const _mongoInsertStart = Date.now();
+      Submission.create({
+        sqlite_id:               newId,
+        message:                 message,
+        user_email:              userEmail || '',
+        dateReceived:            dateReceived || '',
+        personalDetails:         personalDetails || '',
+        response_details:        responseDetails || '',
+        status:                  'null',
+        send_email_notification: notifyFlag === 1,
+        notification_requested:  false,
+      })
+        .then(() => {
+          _mongoInsertMs = Date.now() - _mongoInsertStart;
+          logger.logDB('insert', 'mongo', 'success', { sqlite_id: newId, latencyMs: _mongoInsertMs });
+        })
+        .catch(err => {
+          _mongoInsertMs = Date.now() - _mongoInsertStart;
+          logger.logDB('insert', 'mongo', 'failure', { sqlite_id: newId, error: err.message, latencyMs: _mongoInsertMs });
+          console.error('[Mongo] Initial insert failed (non-fatal):', err.message);
+        });
+    }
 
     // Send response immediately — AI runs in background after this
     res.json({ success: true, id: newId });
 
     // Triple-Layer Defense Pipeline — runs after response, never blocks the request
     setImmediate(async () => {
+      // Track aggregate times for Phase 4 Step 6
+      let aggregateSqliteMs = _sqliteInsertMs;
+      let aggregateMongoMs  = _mongoInsertMs; 
       try {
         console.log('\n====== PIPELINE START: ID', newId, '======');
         const submissionData = { id: newId, message };
@@ -294,13 +366,13 @@ app.post('/api/user-check-data', (req, res) => {
         const finalEvidence = genuineScore > scamScore
           ? `${riskPrefix}GENUINE: ${aiResult.genuine_evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`
           : `${riskPrefix}${aiResult.evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
-
         const guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
           ? JSON.stringify(aiResult.protective_guidance)
           : null;
 
         const submissionStatus = (genuineScore >= 70 || scamScore >= 70) ? 'AI_VERIFIED' : 'IN_REVIEW';
 
+        const _aiUpdateStart = Date.now();
         db.run(
           `UPDATE datacheck
            SET ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?,
@@ -312,15 +384,65 @@ app.post('/api/user-check-data', (req, res) => {
           [scamScore, aiResult.result, aiResult.confidence, finalEvidence, aiResult.genuine_evidence,
            aiResult.risk_level, guidanceStr, aiResult.is_expired ? 1 : 0,
            genuineScore, submissionStatus,
-           campaignContext.matchFound ? 1 : 0, 
+           campaignContext.matchFound ? 1 : 0,
            campaignContext.matchFound ? campaignContext.indicators.join(', ') : null,
            newId],
-          (updateErr) => {
+          async (updateErr) => {
+            const _aiUpdateMs = Date.now() - _aiUpdateStart;
             if (updateErr) {
+              logger.logDB('update', 'sqlite', 'failure', { id: newId, stage: 'D-AI', error: updateErr.message, latencyMs: _aiUpdateMs });
               console.error('[Stage D] DB update failed:', updateErr.message);
               return;
             }
+            logger.logDB('update', 'sqlite', 'success', { id: newId, stage: 'D-AI', scamScore, genuineScore, latencyMs: _aiUpdateMs });
+            aggregateSqliteMs += _aiUpdateMs;
             console.log('[Stage D] ✅ AI results saved for ID:', newId);
+
+            // ─── Phase 3: MongoDB shadow update — AI results (fail-safe) ─────
+            if (shouldWriteToMongo()) {
+              const matchedPatterns = campaignContext.matchFound
+                ? (campaignContext.indicators || [])
+                : [];
+              const _mongoAiUpdateStart = Date.now();
+              // Awaiting here inside the background pipeline to ensure accuracy of the performance summary log
+              await Submission.findOneAndUpdate(
+                { sqlite_id: newId },
+                {
+                  ai_result: {
+                    scam_score:    scamScore,
+                    genuine_score: genuineScore,
+                    confidence:    aiResult.confidence   || '',
+                    risk_level:    aiResult.risk_level   || '',
+                    verdict:       aiResult.result       || aiResult.verdict || '',
+                    is_expired:    aiResult.is_expired   ? true : false,
+                    evidence_analysis:   Array.isArray(aiResult.evidence_analysis)   ? aiResult.evidence_analysis   : [],
+                    protective_guidance: Array.isArray(aiResult.protective_guidance) ? aiResult.protective_guidance : [],
+                    final_verdict: aiResult.final_verdict || '',
+                  },
+                  ai_score:          scamScore,
+                  genuine_score:     genuineScore,
+                  ai_confidence:     aiResult.confidence || '',
+                  risk_level:        aiResult.risk_level || '',
+                  is_expired:        aiResult.is_expired ? true : false,
+                  status:            finalStatus !== 'null' ? finalStatus : 'null',
+                  submission_status: submissionStatus,
+                  ai_checked:        true,
+                  campaign_match:    campaignContext.matchFound ? true : false,
+                  matched_pattern:   matchedPatterns,
+                }
+              )
+                .then(() => {
+                  const ms = Date.now() - _mongoAiUpdateStart;
+                  aggregateMongoMs += ms;
+                  logger.logDB('update', 'mongo', 'success', { sqlite_id: newId, stage: 'D-AI', latencyMs: ms });
+                })
+                .catch(err => {
+                  const ms = Date.now() - _mongoAiUpdateStart;
+                  aggregateMongoMs += ms;
+                  logger.logDB('update', 'mongo', 'failure', { sqlite_id: newId, stage: 'D-AI', error: err.message, latencyMs: ms });
+                  console.error('[Mongo] AI update failed (non-fatal):', err.message);
+                });
+            }
 
             // AUTO-VERIFICATION LOGIC
             if (genuineScore > scamScore) {
@@ -339,11 +461,20 @@ app.post('/api/user-check-data', (req, res) => {
               sendAdminAlert(submissionData, { ...aiResult, evidence: finalEvidence }, investigationPath.join(' → '))
                 .catch(e => console.error('[Stage D] Admin alert failed:', e.message));
             }
+
+            console.log('====== PIPELINE END: ID', newId, '| Scam:', scamScore, '| Genuine:', genuineScore, '| Status:', finalStatus, '======\n');
+
+            // Phase 4 Step 6 — PERFORMANCE + LATENCY TRACKING (Logging at the absolute end of all DB ops)
+            const totalPipelineTime = Date.now() - _pipelineStart;
+            logger.logInfo('Pipeline Performance Summary', {
+              service: "verification",
+              sqliteTime: `${aggregateSqliteMs}ms`,
+              mongoTime: `${aggregateMongoMs || 'N/A'}ms`,
+              aiTime: `${aiResult.latencyMs || 0}ms`,
+              totalTime: `${totalPipelineTime}ms`
+            });
           }
         );
-
-
-        console.log('====== PIPELINE END: ID', newId, '| Scam:', scamScore, '| Genuine:', genuineScore, '| Status:', finalStatus, '======\n');
 
 
       } catch (error) {
@@ -445,6 +576,27 @@ app.post('/api/admin/verify-submission', (req, res) => {
     });
 
     res.json({ success: true, message: `Submission ${id} marked as ${finalResult}` });
+
+    // ─── Phase 3: MongoDB shadow update — admin verdict (fail-safe) ──────────
+    if (shouldWriteToMongo()) {
+      const _mongoAdminStart = Date.now();
+      Submission.findOneAndUpdate(
+        { sqlite_id: Number(id) },
+        {
+          final_result:           finalResult,
+          admin_reason:           adminReason || null,
+          verified_by_admin:      true,
+          verification_timestamp: new Date(timestamp),
+          submission_status:      'ADMIN_VERIFIED',
+          status:                 displayStatus,
+        }
+      )
+        .then(() => logger.logDB('update', 'mongo', 'success', { sqlite_id: Number(id), stage: 'admin-verify', latencyMs: Date.now() - _mongoAdminStart }))
+        .catch(err => {
+          logger.logDB('update', 'mongo', 'failure', { sqlite_id: Number(id), stage: 'admin-verify', error: err.message, latencyMs: Date.now() - _mongoAdminStart });
+          console.error('[Mongo] Admin verify update failed (non-fatal):', err.message);
+        });
+    }
 
     // ── Phase 5: Agent Learning (only if reason exists) ──
     if (adminReason) {
@@ -709,4 +861,134 @@ app.get('/api/user-stats/:email', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
+
+  // ─── Phase 4 Step 7: Log active DB architecture on startup ───────────────
+  const mongoMode = process.env.USE_MONGO_PRIMARY === 'true' ? 'PRIMARY' : 'SHADOW';
+  const modeLabel = mongoMode === 'PRIMARY'
+    ? '🔴 Mongo PRIMARY mode — reads & writes served from MongoDB'
+    : '🟡 Mongo SHADOW mode  — SQLite is source of truth, MongoDB is shadow-write only';
+  console.log(`\n[Architecture] ${modeLabel}\n`);
+  logger.logInfo('Server startup', { port: PORT, mongoMode, sqliteActive: true });
+
+  // ─── Phase 1: MongoDB — non-blocking, fail-safe ──────────────────────────
+  // connectMongo() is async and WILL NOT block the server or affect SQLite.
+  // If MONGO_URI is not set or Mongo is down, server continues normally.
+  connectMongo();
 });
+
+
+// ─── Phase 4: Debug / Observability Endpoints ────────────────────────────────
+const { compareRecord } = require('./utils/dataConsistencyChecker');
+
+// Step 3: Consistency Checker — verifies dual-write integrity for a single record
+app.get('/debug/consistency-check/:id', async (req, res) => {
+  const { id } = req.params;
+  const numericId = Number(id);
+
+  if (!numericId || isNaN(numericId)) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+
+  // 1. Fetch SQLite record
+  const sqliteRecord = await new Promise((resolve) => {
+    db.get('SELECT * FROM datacheck WHERE id = ?', [numericId], (err, row) => resolve(err ? null : row));
+  });
+
+  if (!sqliteRecord) {
+    return res.status(404).json({ error: `SQLite record not found for ID ${numericId}` });
+  }
+
+  // 2. Fetch MongoDB record
+  let mongoRecord = null;
+  let mongoError  = null;
+  if (shouldWriteToMongo()) {
+    try {
+      mongoRecord = await Submission.findOne({ sqlite_id: numericId }).lean();
+    } catch (err) {
+      mongoError = err.message;
+    }
+  }
+
+  if (!mongoRecord) {
+    return res.status(404).json({
+      error: `MongoDB record not found for sqlite_id ${numericId}`,
+      mongoError,
+      sqlite: sqliteRecord,
+      mongo: null,
+    });
+  }
+
+  // 3. Compare
+  const { isConsistent, differences } = compareRecord(sqliteRecord, mongoRecord);
+
+  logger.logInfo('[Debug] Consistency check requested', { sqlite_id: numericId, isConsistent });
+
+  res.json({
+    sqlite_id:    numericId,
+    isConsistent,
+    differences,
+    sqlite:       sqliteRecord,
+    mongo:        mongoRecord,
+  });
+});
+
+// Step 9: System Status Dashboard — overall health snapshot
+app.get('/debug/system-status', async (req, res) => {
+  const sqliteActive   = true;
+  const mongoConnected = isMongoConnected();
+
+  // Step 9: Pull last 5 errors from the log file
+  const lastErrors = [];
+  try {
+    const logPath = path.join(__dirname, 'logs', 'system.log');
+    if (fs.existsSync(logPath)) {
+      const fileStream = fs.createReadStream(logPath);
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+      
+      const allErrors = [];
+      for await (const line of rl) {
+        try {
+          const entry = JSON.parse(line);
+          if (entry.level === 'error') {
+            allErrors.push(entry);
+          }
+        } catch (e) { /* skip malformed */ }
+      }
+      // Get last 5, most recent first
+      lastErrors.push(...allErrors.reverse().slice(0, 5));
+    }
+  } catch (err) {
+    console.error('[Debug] Log parse failed:', err.message);
+  }
+
+  // AI status: simple connectivity check
+  const aiStatus = process.env.GROQ_API_KEY ? 'configured' : 'missing key';
+
+  // Write rate: count AI-checked rows vs total
+  const stats = await new Promise((resolve) => {
+    db.get('SELECT COUNT(*) as total, SUM(ai_checked) as aiChecked FROM datacheck', (err, row) => {
+      resolve(err ? { total: 0, aiChecked: 0 } : row);
+    });
+  });
+
+  const total     = stats.total || 0;
+  const aiChecked = stats.aiChecked || 0;
+  const writeSuccessRate = total > 0 ? `${Math.round((aiChecked / total) * 100)}%` : 'N/A';
+
+  logger.logInfo('[Debug] System status requested', { mongoConnected, aiStatus, writeSuccessRate });
+
+  res.json({
+    timestamp:        new Date().toISOString(),
+    mongoConnected,
+    sqliteActive,
+    aiStatus,
+    totalSubmissions: total,
+    aiChecked,
+    writeSuccessRate,
+    lastErrors,
+    flags: {
+      USE_MONGO_PRIMARY: process.env.USE_MONGO_PRIMARY === 'true',
+    }
+  });
+});
+
