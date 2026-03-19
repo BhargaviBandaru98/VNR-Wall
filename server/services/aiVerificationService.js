@@ -31,7 +31,7 @@ const AI_FALLBACK = {
 
 /**
  * Verify a message using Groq AI with three data sources.
- * Returns { fake_score, genuine_score, result, confidence, evidence, genuine_evidence }
+ * Returns exactly the validated JSON response from AI.
  *
  * @param {string} text           - Original message text
  * @param {string} [pageContent]  - Firecrawl scraped content
@@ -43,17 +43,12 @@ const AI_FALLBACK = {
  */
 async function verifyMessageWithAI(text, pageContent = '', officialLinks = [], personalDetails = '', dateReceived = '', learningRules = [], campaignContext = null) {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
-        return {
-            scam_score: 50, genuine_score: 50,
-            result: 'UNKNOWN', confidence: 'LOW',
-            evidence: 'No message text provided.',
-            genuine_evidence: 'No message text provided.'
-        };
+        throw new Error('NO_MESSAGE_TEXT_PROVIDED');
     }
 
     if (!groq) {
         logger.logError('[AI] verifyMessageWithAI aborted: GROQ_API_KEY is missing.');
-        return { ...AI_FALLBACK, reason: 'AI disabled (missing key)' };
+        throw new Error('AI_DISABLED_MISSING_KEY');
     }
 
 
@@ -130,81 +125,88 @@ Repeated Indicators: ${campaignContext.indicators.join(', ')}`
 - Simultaneously compute BOTH a scam_score AND a genuine_score (0-100).
 - If Financial Red Flags or Data Exploitation are detected, risk_level MUST be 'High' or 'Critical' and scam_score >= 90.
 
-Return ONLY valid JSON:
+You MUST return STRICT JSON only. Do NOT include any conversational text, greetings, code block markers (\`\`\`json), or explanations before or after the JSON.
+
+REQUIRED JSON SCHEMA:
 {
   "scam_score": <0-100>,
   "genuine_score": <0-100>,
   "risk_level": "Low" | "Medium" | "High" | "Critical",
-  "result": "SCAM" | "GENUINE",
+  "verdict": "SCAM" | "GENUINE" | "SUSPICIOUS" | "UNKNOWN",
   "confidence": "HIGH" | "MEDIUM" | "LOW",
   "is_expired": true | false,
-  "ai_evidence": "Detailed technical and forensic proof of risk indicators.",
-  "genuine_evidence": "Forensic proof of authenticity (e.g., domain match, verified portal).",
+  "evidence_analysis": [
+    {
+       "text": "Detailed forensic proof.",
+       "type": "positive" | "negative" | "warning"
+    }
+  ],
   "protective_guidance": [
     "Tip 1 (e.g., Do not pay any security deposit)",
-    "Tip 2 (e.g., Verify directly at company.com/careers)",
-    "Tip 3",
-    "Tip 4"
-  ]
+    "Tip 2 (e.g., Verify directly at company.com/careers)"
+  ],
+  "final_verdict": ""
 }
 `;
 
+    const _aiStart = Date.now();
+    let response;
     try {
-        const _aiStart = Date.now();
-        let response;
-        try {
-            response = await groq.chat.completions.create({
-                model: 'llama-3.3-70b-versatile',
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0,
-                response_format: { type: 'json_object' },
-            }, { signal: AbortSignal.timeout(25_000) }); // Phase 4: 25 s hard timeout
-        } catch (timeoutErr) {
-            const isTimeout = timeoutErr.name === 'TimeoutError' || timeoutErr.message?.includes('timeout');
-            logger.logError(`[AI] Groq request ${isTimeout ? 'timed out' : 'network failed'}`, timeoutErr);
-            return { ...AI_FALLBACK, reason: isTimeout ? 'AI timeout' : 'AI network error' };
-        }
-
-        const _aiMs = Date.now() - _aiStart;
-        logger.logInfo('[AI] Groq response received', { latencyMs: _aiMs, model: 'llama-3.3-70b-versatile' });
-
-        const raw = response.choices?.[0]?.message?.content?.trim() ?? '';
-        console.log('AI RAW OUTPUT:', raw);
-
-        if (!raw) {
-            logger.logError('[AI] Groq returned empty response');
-            return { ...AI_FALLBACK, reason: 'AI empty response' };
-        }
-
-        let parsed;
-        try {
-            parsed = JSON.parse(raw);
-        } catch (jsonErr) {
-            logger.logError('[AI] Groq response is not valid JSON', { raw: raw.substring(0, 200) });
-            return { ...AI_FALLBACK, reason: 'AI invalid JSON' };
-        }
-        console.log('AI PARSED RESULT:', parsed);
-
-        // Map risk_level to results for internal logic compatibility
-        const isHighRisk = parsed.risk_level === 'High' || parsed.risk_level === 'Critical' || parsed.scam_score >= 80;
-        const mappedResult = isHighRisk ? 'SCAM' : (parsed.result || 'GENUINE');
-        return {
-            scam_score: typeof parsed.scam_score === 'number' ? parsed.scam_score : 50,
-            genuine_score: typeof parsed.genuine_score === 'number' ? parsed.genuine_score : 0,
-            risk_level: typeof parsed.risk_level === 'string' ? parsed.risk_level : 'Medium',
-            result: mappedResult.toUpperCase(),
-            confidence: typeof parsed.confidence === 'string' ? parsed.confidence.toUpperCase() : 'LOW',
-            is_expired: !!parsed.is_expired,
-            evidence: typeof parsed.ai_evidence === 'string' ? parsed.ai_evidence : 'No technical evidence provided.',
-            genuine_evidence: typeof parsed.genuine_evidence === 'string' ? parsed.genuine_evidence : 'No genuine indicators found.',
-            protective_guidance: Array.isArray(parsed.protective_guidance) ? parsed.protective_guidance : [],
-            latencyMs: _aiMs // Added for Step 6 tracking
-        };
-
-    } catch (error) {
-        logger.logError('[AI] verifyMessageWithAI unexpected error', error);
-        return { ...AI_FALLBACK, reason: 'AI analysis system failure', latencyMs: 0 };
+        response = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0,
+            response_format: { type: 'json_object' },
+        }, { signal: AbortSignal.timeout(25_000) });
+    } catch (timeoutErr) {
+        logger.logError(`[AI] Groq request network failed or timed out`, timeoutErr);
+        throw new Error('AI_NETWORK_ERROR_OR_TIMEOUT');
     }
+
+    const _aiMs = Date.now() - _aiStart;
+    logger.logInfo('[AI] Groq response received', { latencyMs: _aiMs, model: 'llama-3.3-70b-versatile' });
+
+    let raw = response.choices?.[0]?.message?.content?.trim() ?? '';
+    console.log('AI RAW OUTPUT:', raw);
+
+    if (!raw) {
+        logger.logError('[AI] Groq returned empty response');
+        throw new Error('AI_EMPTY_RESPONSE');
+    }
+
+    // Extract JSON using regex to ignore any surrounding text
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+        logger.logError('[AI] No JSON block found in response', { raw: raw.substring(0, 200) });
+        throw new Error('MALFORMED_AI_RESPONSE');
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(jsonMatch[0]);
+    } catch (jsonErr) {
+        logger.logError('[AI] Groq response is not valid JSON', { extracted_json: jsonMatch[0].substring(0, 200) });
+        throw new Error('MALFORMED_AI_RESPONSE');
+    }
+    console.log('AI PARSED RESULT:', parsed);
+
+    // Strict Schema Check for Required Keys
+    const requiredKeys = ['scam_score', 'genuine_score', 'confidence', 'verdict', 'evidence_analysis', 'protective_guidance', 'final_verdict'];
+    for (const key of requiredKeys) {
+        if (!(key in parsed)) {
+            logger.logError(`[AI] Missing required key in response: ${key}`, { parsed });
+            throw new Error(`MALFORMED_AI_RESPONSE: Missing key ${key}`);
+        }
+    }
+
+    // Map `result` to `verdict` if `result` was provided instead of `verdict` for backward compatibility with the prompt evolution, though prompt now demands `verdict`. The prompt is updated to ask for verdict. We expect verdict.
+    if(!('verdict' in parsed) && ('result' in parsed)) {
+        parsed.verdict = parsed.result; // Fallback mapping just in case the LLM slipped, but we require `verdict` above now.
+    }
+
+    // Return the raw validated AI data
+    parsed.latencyMs = _aiMs;
+    return parsed;
 }
 
 /**

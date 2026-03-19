@@ -9,7 +9,12 @@ export default defineConfig({
     strictPort: false,
     allowedHosts: [
       '3d87df051e73.ngrok-free.app'
-    ]
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:6105',
+        changeOrigin: true
+      }
+    }
   }
 })
-

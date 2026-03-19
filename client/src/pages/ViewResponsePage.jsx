@@ -201,8 +201,9 @@ const ViewResponses = () => {
       try {
         setLoading(true);
         const res = await axios.get(`${BACKEND_URL}/api/datas`);
-        const serverMessages = res.data.map((item, index) => ({
-          id: item.id || index + 1,
+        const submissionsArray = Array.isArray(res.data) ? res.data : (res.data.submissions || []);
+        const serverMessages = submissionsArray.map((item, index) => ({
+          id: item._id || item.id || index + 1,
           category: item.category || 'Not specified',
           receivedDate: item.dateReceived || 'N/A',
           status: item.status === 'null' || item.status === null ? 'inreview'

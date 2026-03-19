@@ -432,41 +432,81 @@ app.post('/api/user-check-data', (req, res) => {
           combinedDetails = `${personalDetails} - ${responseDetails}`;
         }
 
-        const aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived, learningRules, campaignContext);
-        console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Result:', aiResult.result, '| Confidence:', aiResult.confidence);
-        console.log('[Stage C] Evidence:', aiResult.evidence);
-        
-        investigationPath.push('AI Investigated');
-        if (campaignContext.matchFound) investigationPath.push('Learning Reinforced');
-
-        // ─── STAGE D: Determine status & save ─────────────────────────────────
-        const scamScore = aiResult.scam_score;
-        const genuineScore = aiResult.genuine_score || 0;
+        let aiResult = null;
         let finalStatus = 'null';
+        let submissionStatus = 'IN_REVIEW';
+        let aiChecked = false;
+        let markedBy = undefined;
+        let scamScore = 0;
+        let genuineScore = 0;
+        let confidence = '';
+        let riskLevel = '';
+        let isExpired = false;
+        let finalEvidence = '';
+        let genuineEvidenceStr = '';
+        let guidanceStr = null;
+        let matchedPatterns = [];
+        let scamScoreNum = 0;
 
-        if (genuineScore > scamScore) {
-          finalStatus = 'Genuine';
-          investigationPath.push('Auto-marked Genuine');
-        } else if (scamScore >= 80) {
-          finalStatus = 'Scam';
-          investigationPath.push('Auto-marked Scam');
-        } else if (scamScore >= 60) {
-          investigationPath.push('Admin Review Triggered');
+        try {
+            aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived, learningRules, campaignContext);
+            console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Verdict:', aiResult.verdict, '| Confidence:', aiResult.confidence);
+            
+            investigationPath.push('AI Investigated');
+            if (campaignContext.matchFound) investigationPath.push('Learning Reinforced');
+
+            // ─── STAGE D: Determine status & save ─────────────────────────────────
+            scamScore = aiResult.scam_score;
+            genuineScore = aiResult.genuine_score;
+            confidence = aiResult.confidence;
+            riskLevel = aiResult.risk_level;
+            isExpired = aiResult.is_expired;
+            scamScoreNum = Number(scamScore) || 0;
+
+            // Strict adherence to AI verdict mapping
+            if (aiResult.verdict === 'GENUINE') {
+                finalStatus = 'Genuine';
+                investigationPath.push('Auto-marked Genuine');
+            } else if (aiResult.verdict === 'SCAM') {
+                finalStatus = 'Scam';
+                investigationPath.push('Auto-marked Scam');
+            } else if (aiResult.verdict === 'SUSPICIOUS') {
+                investigationPath.push('Admin Review Triggered (Suspicious)');
+            } else {
+                investigationPath.push('Admin Review Triggered (Unknown Verdict)');
+            }
+
+            const riskPrefix = riskLevel ? `[${riskLevel.toUpperCase()}] ` : '';
+            const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
+              ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
+              : '';
+
+            // Format evidence for legacy sqlite compatibility if needed, but strictly from AI provided data
+            const primaryEvidence = (aiResult.evidence_analysis && aiResult.evidence_analysis.length > 0) 
+              ? aiResult.evidence_analysis.map(e => e.text).join(' ') 
+              : 'No technical evidence provided.';
+              
+            finalEvidence = `${riskPrefix}${primaryEvidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
+            
+            // Only populate genuine_evidence fallback if explicitly GENUINE to match old contract, but using primary evidence text
+            if(aiResult.verdict === 'GENUINE') {
+                genuineEvidenceStr = primaryEvidence;
+            }
+
+            guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
+              ? JSON.stringify(aiResult.protective_guidance)
+              : null;
+
+            submissionStatus = (aiResult.verdict === 'GENUINE' || aiResult.verdict === 'SCAM') ? 'AI_VERIFIED' : 'IN_REVIEW';
+            aiChecked = true;
+            markedBy = finalStatus !== 'null' ? 'auto' : undefined;
+            matchedPatterns = campaignContext.matchFound ? (campaignContext.indicators || []) : [];
+
+        } catch (aiError) {
+            console.error(`[Stage C] AI Verification failed for ID ${sqliteId || mongoId}:`, aiError.message);
+            // On AI failure, we leave it as IN_REVIEW, do not set ai_checked, leave status null. Fail loudly in logs.
+            investigationPath.push(`AI FAILED: ${aiError.message}`);
         }
-
-        const riskPrefix = aiResult.risk_level ? `[${aiResult.risk_level.toUpperCase()}] ` : '';
-        const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
-          ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
-          : '';
-
-        const finalEvidence = genuineScore > scamScore
-          ? `${riskPrefix}GENUINE: ${aiResult.genuine_evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`
-          : `${riskPrefix}${aiResult.evidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
-        const guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
-          ? JSON.stringify(aiResult.protective_guidance)
-          : null;
-
-        const submissionStatus = (genuineScore >= 70 || scamScore >= 70) ? 'AI_VERIFIED' : 'IN_REVIEW';
 
         const submissionData = {
           id: sqliteId || mongoId,
@@ -479,50 +519,52 @@ app.post('/api/user-check-data', (req, res) => {
         };
 
         const _aiUpdateStart = Date.now();
-        const matchedPatterns = campaignContext.matchFound ? (campaignContext.indicators || []) : [];
-        const updateData = {
-          ai_result: {
-            scam_score:    scamScore,
-            genuine_score: genuineScore,
-            confidence:    aiResult.confidence   || '',
-            risk_level:    aiResult.risk_level   || '',
-            verdict:       aiResult.result       || aiResult.verdict || '',
-            is_expired:    aiResult.is_expired   ? true : false,
-            evidence_analysis:   Array.isArray(aiResult.evidence_analysis)   ? aiResult.evidence_analysis   : [],
-            protective_guidance: Array.isArray(aiResult.protective_guidance) ? aiResult.protective_guidance : [],
-            final_verdict: aiResult.final_verdict || '',
-          },
-          ai_score:          scamScore,
-          genuine_score:     genuineScore,
-          ai_confidence:     aiResult.confidence || '',
-          risk_level:        aiResult.risk_level || '',
-          is_expired:        aiResult.is_expired ? true : false,
-          status:            finalStatus !== 'null' ? finalStatus : 'null',
+        
+        let updateData = {
+          status:            finalStatus,
           submission_status: submissionStatus,
-          ai_checked:        true,
+          ai_checked:        aiChecked,
           campaign_match:    campaignContext.matchFound ? true : false,
-          matched_pattern:   matchedPatterns,
-          marked_by:         finalStatus !== 'null' ? 'auto' : undefined
+          matched_pattern:   matchedPatterns
         };
+
+        if (markedBy) {
+            updateData.marked_by = markedBy;
+        }
+
+        if (aiChecked && aiResult !== null) {
+            updateData.ai_result = {
+                scam_score:    scamScore,
+                genuine_score: genuineScore,
+                confidence:    confidence,
+                risk_level:    riskLevel,
+                verdict:       aiResult.verdict,
+                is_expired:    isExpired,
+                evidence_analysis:   Array.isArray(aiResult.evidence_analysis)   ? aiResult.evidence_analysis   : [],
+                protective_guidance: Array.isArray(aiResult.protective_guidance) ? aiResult.protective_guidance : [],
+                final_verdict: aiResult.final_verdict || '',
+            };
+            updateData.ai_score = scamScore;
+            updateData.genuine_score = genuineScore;
+            updateData.ai_confidence = confidence;
+            updateData.risk_level = riskLevel;
+            updateData.is_expired = isExpired;
+        }
 
         const performSqliteUpdate = () => {
           return new Promise((resolve) => {
-            db.run(
-              `UPDATE datacheck
-               SET ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?,
-                   risk_level=?, protective_guidance=?, is_expired=?,
-                   ai_checked=1, ai_last_checked=datetime('now'),
-                   genuine_score=?, submission_status=?,
-                   campaign_match=?, matched_pattern=?, status = ?
-               WHERE id=?`,
-              [scamScore, aiResult.result, aiResult.confidence, finalEvidence, aiResult.genuine_evidence,
-               aiResult.risk_level, guidanceStr, aiResult.is_expired ? 1 : 0,
-               genuineScore, submissionStatus,
-               campaignContext.matchFound ? 1 : 0,
-               matchedPatterns.join(', '), 
-               finalStatus !== 'null' ? finalStatus : 'null',
-               sqliteId || mongoId],
-              (err) => {
+            let sql = `UPDATE datacheck SET submission_status=?, campaign_match=?, matched_pattern=?, status=?`;
+            let params = [submissionStatus, campaignContext.matchFound ? 1 : 0, matchedPatterns.join(', '), finalStatus];
+
+            if (aiChecked && aiResult !== null) {
+                sql += `, ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?, risk_level=?, protective_guidance=?, is_expired=?, ai_checked=1, ai_last_checked=datetime('now'), genuine_score=?`;
+                params.push(scamScore, aiResult.verdict, confidence, finalEvidence, genuineEvidenceStr, riskLevel, guidanceStr, isExpired ? 1 : 0, genuineScore);
+            }
+            
+            sql += ` WHERE id=?`;
+            params.push(sqliteId || mongoId);
+
+            db.run(sql, params, (err) => {
                 const ms = Date.now() - _aiUpdateStart;
                 if (err) {
                   logger.logDB('update', 'sqlite', 'failure', { id: sqliteId || mongoId, error: err.message, latencyMs: ms });
@@ -559,10 +601,10 @@ app.post('/api/user-check-data', (req, res) => {
           if (shouldWriteToMongo()) performMongoUpdate(); // shadow
         }
 
-        console.log('[Stage D] ✅ AI results saved for ID:', sqliteId || mongoId);
+        console.log('[Stage D] ✅ DB updated for ID:', sqliteId || mongoId);
 
         // AUTO-VERIFICATION LOGIC
-        if (finalStatus !== 'null' && notifyFlag && userEmail) {
+        if (finalStatus !== 'null' && notifyFlag && userEmail && aiChecked) {
           sendUserNotification(userEmail, { 
             id: sqliteId || mongoId, 
             status: finalStatus, 
@@ -572,10 +614,11 @@ app.post('/api/user-check-data', (req, res) => {
         }
 
         // ADMIN ALERT
-        if (scamScore >= 60 && scamScore < 80 && genuineScore <= scamScore) {
+        if (aiChecked && aiResult && (aiResult.verdict === 'SUSPICIOUS' || (scamScoreNum >= 60 && scamScoreNum < 80))) {
           sendAdminAlert(submissionData, { ...aiResult, evidence: finalEvidence }, investigationPath.join(' → '))
             .catch(e => console.error('[Stage D] Admin alert failed:', e.message));
         }
+
 
         console.log('====== PIPELINE END: ID', sqliteId || mongoId, '| Scam:', scamScore, '| Genuine:', genuineScore, '| Status:', finalStatus, '======\n');
 
@@ -599,39 +642,110 @@ app.post('/api/user-check-data', (req, res) => {
 
 // Get all datacheck entries
 app.get('/api/datas', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  // Extract role
+  let requestor_role = 'user';
+  if (req.headers.authorization) {
+    try {
+      // Basic extraction attempt if it's a JWT. Otherwise, check custom headers.
+      const token = req.headers.authorization.split(' ')[1];
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+    } catch(e) { /* ignore */ }
+  } else if (req.headers['x-user-role']) {
+    requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
+  } else if (req.user) {
+    requestor_role = (req.user.role || req.user.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+  }
+
+  const formatSubmissions = (subs) => {
+    return subs.map(sub => {
+      // Parse stringified ai_result (common in SQLite)
+      if (typeof sub.ai_result === 'string') {
+        try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+      }
+      return sub;
+    });
+  };
+
   if (isMongoPrimary()) {
     try {
-      const submissions = await Submission.find().sort({ createdAt: -1 }).lean();
-      return res.json(mapSubmissions(submissions));
+      let submissions = await Submission.find().sort({ createdAt: -1 }).lean();
+      submissions = formatSubmissions(submissions); // Also apply to mapped subs if needed
+      return res.json({
+        submissions: mapSubmissions(submissions),
+        requestor_role
+      });
     } catch (err) {
       logger.logError('Mongo Read Error (GET /api/datas)', err);
       // Fall through to SQLite
     }
   }
+  
   db.all('SELECT * FROM datacheck ORDER BY id DESC', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+    return res.json({
+      submissions: formatSubmissions(rows),
+      requestor_role
+    });
   });
 });
 
 app.get('/api/datas/:id', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  let requestor_role = 'user';
+  if (req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+    } catch(e) { /* ignore */ }
+  } else if (req.headers['x-user-role']) {
+    requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
+  } else if (req.user) {
+    requestor_role = (req.user.role || req.user.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+  }
+
+  const formatSubmission = (sub) => {
+    if (typeof sub.ai_result === 'string') {
+      try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+    }
+    return sub;
+  };
+
   const { id } = req.params;
   if (isMongoPrimary()) {
     try {
       // Find by Mongo ID first, or sqlite_id if numeric
       const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { sqlite_id: Number(id) };
-      const submission = await Submission.findOne(query).lean();
-      if (submission) return res.json(mapSubmission(submission));
+      let submission = await Submission.findOne(query).lean();
+      if (submission) {
+        submission = formatSubmission(submission);
+        return res.json({
+          submission: mapSubmission(submission),
+          ai_result: submission.ai_result,
+          requestor_role
+        });
+      }
       return res.status(404).json({ error: 'Submission not found' });
     } catch (err) {
       logger.logError('Mongo Read Error (GET /api/datas/:id)', err);
       return res.status(500).json({ error: 'Database read failed' });
     }
   }
+  
   db.get('SELECT * FROM datacheck WHERE id = ?', [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Submission not found' });
-    res.json(row);
+    
+    row = formatSubmission(row);
+    return res.json({
+      submission: row,
+      ai_result: row.ai_result,
+      requestor_role
+    });
   });
 });
 
@@ -639,13 +753,42 @@ app.get('/api/datas/:id', async (req, res) => {
 
 // Get all submissions pending manual review
 app.get('/api/admin/in-review', async (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  
+  let requestor_role = 'user';
+  if (req.headers.authorization) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+    } catch(e) { /* ignore */ }
+  } else if (req.headers['x-user-role']) {
+    requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
+  } else if (req.user) {
+    requestor_role = (req.user.role || req.user.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
+  }
+
+  const formatSubmissions = (subs) => {
+    return subs.map(sub => {
+      if (typeof sub.ai_result === 'string') {
+        try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+      }
+      return sub;
+    });
+  };
+
   if (isMongoPrimary()) {
     try {
-      const submissions = await Submission.find({
+      let submissions = await Submission.find({
         submission_status: 'IN_REVIEW',
         verified_by_admin: { $ne: true }
       }).sort({ createdAt: -1 }).lean();
-      return res.json(mapSubmissions(submissions));
+      
+      submissions = formatSubmissions(submissions);
+      return res.json({
+        submissions: mapSubmissions(submissions),
+        requestor_role
+      });
     } catch (err) {
       logger.logError('Mongo Read Error (GET /api/admin/in-review)', err);
       // Fall through to SQLite
@@ -659,7 +802,10 @@ app.get('/api/admin/in-review', async (req, res) => {
   `;
   db.all(sql, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+    return res.json({
+      submissions: formatSubmissions(rows),
+      requestor_role
+    });
   });
 });
 

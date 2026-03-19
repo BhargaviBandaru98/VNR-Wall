@@ -113,7 +113,7 @@ const Dashboard = () => {
                             const StatusIcon = isScam ? ShieldAlert : item.status === 'Genuine' ? ShieldCheck : Activity;
 
                             return (
-                                <div key={item.id} className="activity-item" onClick={() => openModal(item)}>
+                                <div key={item._id || item.id} className="activity-item" onClick={() => openModal(item)}>
                                     <div className={`activity-icon ${statusClass}`}>
                                         <StatusIcon size={20} />
                                     </div>

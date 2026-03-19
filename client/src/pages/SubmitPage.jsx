@@ -66,8 +66,15 @@ const SubmitPage = () => {
     const check = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/datas/${id}`);
-        if (res.data.ai_checked === 1) {
-          setResultData(res.data);
+        const dataPayload = res.data;
+        const sub = dataPayload.submission || dataPayload;
+
+        if (sub.ai_checked === 1 || sub.ai_checked === true) {
+          setResultData({
+            ...sub,
+            ai_result: dataPayload.ai_result || sub.ai_result,
+            requestor_role: dataPayload.requestor_role
+          });
           setIsVerifying(false);
           setShowModal(true);
           return true;
@@ -99,12 +106,14 @@ const SubmitPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsVerifying(true);
+    setResultData(null);
+    setShowModal(false);
 
     try {
       const res = await axios.post(`${BACKEND_URL}/api/user-check-data`, formData);
 
       if (res.data.success) {
-        pollResult(res.data.id);
+        pollResult(res.data._id || res.data.id);
       }
     } catch (error) {
       console.error('Error submitting form:', error);
