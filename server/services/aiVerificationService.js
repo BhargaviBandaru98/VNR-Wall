@@ -5,11 +5,12 @@ const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 
 const apiKey = process.env.GROQ_API_KEY;
+let groq = null;
 if (!apiKey) {
-    throw new Error('[aiVerificationService] GROQ_API_KEY is not set in environment variables.');
+    logger.logError('[aiVerificationService] GROQ_API_KEY is not set. AI features are DISABLED.');
+} else {
+    groq = new Groq({ apiKey });
 }
-
-const groq = new Groq({ apiKey });
 
 /** Phase 4: Standard fallback returned when Groq is unavailable or response is invalid. */
 const AI_FALLBACK = {
@@ -49,6 +50,12 @@ async function verifyMessageWithAI(text, pageContent = '', officialLinks = [], p
             genuine_evidence: 'No message text provided.'
         };
     }
+
+    if (!groq) {
+        logger.logError('[AI] verifyMessageWithAI aborted: GROQ_API_KEY is missing.');
+        return { ...AI_FALLBACK, reason: 'AI disabled (missing key)' };
+    }
+
 
     const hasPageContent = pageContent &&
         !pageContent.startsWith('No link found') &&
@@ -207,6 +214,9 @@ Return ONLY valid JSON:
  * @returns {Promise<string>}
  */
 async function extractPatternFromReason(adminReason) {
+    if (!groq) {
+        return adminReason || ''; // Gracefully degrade to using raw reason
+    }
     if (!adminReason || adminReason.trim().length === 0) return '';
 
     const prompt = `

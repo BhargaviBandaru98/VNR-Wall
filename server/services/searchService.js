@@ -53,6 +53,11 @@ async function searchOfficialSite(companyName) {
  */
 async function extractCompanyName(text, groq) {
     if (!text) return null;
+    if (!groq) {
+        console.warn('[Serper] Skipping company extraction: AI disabled');
+        return null;
+    }
+    
     try {
         const response = await groq.chat.completions.create({
             model: 'llama-3.3-70b-versatile',
