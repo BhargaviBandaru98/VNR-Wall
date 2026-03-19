@@ -47,15 +47,14 @@ UserSchema.virtual('id').get(function () {
 });
 
 // ─── Pre-save middleware: normalize email to lowercase ────────────────────────
-UserSchema.pre('save', function (next) {
+UserSchema.pre('save', async function () {
   if (this.email) {
     this.email = this.email.toLowerCase().trim();
   }
-  next();
 });
 
 // ─── Pre-update middleware: normalize email on findOneAndUpdate ───────────────
-UserSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) {
+UserSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], async function () {
   const update = this.getUpdate();
   if (update?.email) {
     update.email = update.email.toLowerCase().trim();
@@ -63,7 +62,6 @@ UserSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) 
   if (update?.$set?.email) {
     update.$set.email = update.$set.email.toLowerCase().trim();
   }
-  next();
 });
 
 module.exports = mongoose.model('User', UserSchema);
