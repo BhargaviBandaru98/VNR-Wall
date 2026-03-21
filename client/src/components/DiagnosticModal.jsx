@@ -4,7 +4,6 @@ import axios from 'axios';
 import '../styles/DiagnosticModal.css';
 import '../styles/Stepper.css';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const DiagnosticModal = ({ isOpen, onClose, data }) => {
     const [isCollapsed, setIsCollapsed]   = useState(false);
@@ -79,7 +78,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
         setNotifyLoading(true);
         try {
             const targetId = data._id || data.id;
-            await axios.put(`${BACKEND_URL}/api/notify-request/${targetId}`);
+            await axios.put(`/api/notify-request/${targetId}`);
             setNotifyEnabled(true);
         } catch (err) {
             console.error('Failed to enable notification', err);

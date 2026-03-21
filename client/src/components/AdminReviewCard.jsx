@@ -3,7 +3,6 @@ import { Shield, CheckCircle, AlertTriangle, Info, Send, MessageSquare } from 'l
 import axios from 'axios';
 import '../styles/AdminReviewCard.css';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const AdminReviewCard = ({ data, onVerictSubmitted }) => {
   const [reason, setReason] = useState('');
@@ -12,12 +11,12 @@ const AdminReviewCard = ({ data, onVerictSubmitted }) => {
   const handleVerdict = async (verdict) => {
     setLoading(true);
     try {
-      await axios.post(`${BACKEND_URL}/api/admin/verify-submission`, {
-        id: data.id,
+      await axios.post(`/api/admin/verify-submission`, {
+        id: data._id || data.id,
         verdict,
         reason
       });
-      if (onVerictSubmitted) onVerictSubmitted(data.id);
+      if (onVerictSubmitted) onVerictSubmitted(data._id || data.id);
     } catch (error) {
       console.error('Verdict submission failed:', error);
       alert('Failed to submit verdict');
@@ -29,7 +28,7 @@ const AdminReviewCard = ({ data, onVerictSubmitted }) => {
   return (
     <div className="admin-review-card glass-card animate-fade-in">
       <div className="review-card-header">
-        <div className="submission-id">#ID: {data.id}</div>
+        <div className="submission-id">#ID: {data._id || data.id}</div>
         <div className="risk-badge" data-level={data.risk_level?.toLowerCase()}>
           {data.risk_level || 'UNKNOWN'} RISK
         </div>

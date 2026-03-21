@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Shield, CheckCircle, Clock, User, Eye, Inbox, ArrowLeft } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 import '../styles/ViewResponsesPage.css';
 import StudentMessageCard from '../components/StudentMessageCards';
 import { useAuth } from '../context/AuthContext';
@@ -148,7 +148,7 @@ const CategoryPage = ({
         ) : (
           <div className="row category-messages-grid">
             {filteredMessages.map(message => (
-              <div className="col-md-6 col-lg-4 col-sm-12" key={message.id}>
+              <div className="col-md-6 col-lg-4 col-sm-12" key={message._id || message.id}>
                 <div className="message-wrapper">
                   <StudentMessageCard
                     data={{
@@ -186,6 +186,8 @@ const CategoryPage = ({
 
 const ViewResponses = () => {
   const { user, isAdmin } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState('home'); // 'home' or category id
@@ -200,7 +202,7 @@ const ViewResponses = () => {
     const fetchMessages = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${BACKEND_URL}/api/datas`);
+        const res = await axios.get(`/api/datas`);
         const submissionsArray = Array.isArray(res.data) ? res.data : (res.data.submissions || []);
         const serverMessages = submissionsArray.map((item, index) => ({
           id: item._id || item.id || index + 1,
@@ -220,7 +222,7 @@ const ViewResponses = () => {
           responseDetails: item.response_details || null,
           credibilityRating: parseInt(item.genuineRating) || 0,
           messageContent: item.message || '',
-          tags: item.flags ? JSON.parse(item.flags) : [],
+          tags: Array.isArray(item.flags) ? item.flags : (item.flags ? (() => { try { return JSON.parse(item.flags); } catch(e) { return []; } })() : []),
           submittedByUser: item.user_email === user?.email,
           // AI Verification fields
           scamScore: item.ai_score ?? null,
@@ -243,7 +245,7 @@ const ViewResponses = () => {
   const updateMessageStatus = async (messageId, newStatus) => {
     try {
       const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase();
-      await axios.put(`${BACKEND_URL}/api/update-status/${messageId}`, {
+      await axios.put(`/api/update-status/${messageId}`, {
         status: formattedStatus
       });
       const updatedMessages = messages.map(msg =>
@@ -288,23 +290,26 @@ const ViewResponses = () => {
     }
   }, [searchTerm, messages, currentPage]);
 
-  // Optimized getCounts (single loop)
+  // Apply navigation state filters (from Dashboard or other navigate() calls)
+  useEffect(() => {
+    if (location.state?.filter) {
+      const filterLower = location.state.filter.toLowerCase();
+      setActiveCategory(filterLower === 'home' ? 'all' : filterLower);
+      setCurrentPage(filterLower === 'home' ? 'home' : filterLower);
+    }
+  }, [location.state]);
+
+  // Optimized getCounts (single loop) — safe optional chaining on status
   const getCounts = () => {
     const counts = { all: messages.length, fake: 0, genuine: 0, inReview: 0, submitted: 0 };
     messages.forEach(msg => {
       if (msg.submittedByUser) counts.submitted++;
-      switch (msg.status.toLowerCase()) {
-        case 'scam':
-          counts.fake++;
-          break;
-        case 'genuine':
-          counts.genuine++;
-          break;
-        case 'inreview':
-          counts.inReview++;
-          break;
-        default:
-          break;
+      const status = msg?.status?.toLowerCase?.() || 'inreview';
+      switch (status) {
+        case 'scam': counts.fake++; break;
+        case 'genuine': counts.genuine++; break;
+        case 'inreview': counts.inReview++; break;
+        default: break;
       }
     });
     return counts;
@@ -360,18 +365,20 @@ const ViewResponses = () => {
     }
   ];
 
-  // Handle category click to navigate to category page
+  // Handle category click — set local state AND sync navigate state for history
   const handleCategoryClick = (categoryId) => {
+    console.log("CATEGORY CLICK:", categoryId);
     setCurrentPage(categoryId);
-    setActiveCategory(categoryId);
+    setActiveCategory(categoryId === 'home' ? 'all' : categoryId);
     setSearchTerm('');
+    navigate('/responses', { state: { filter: categoryId }, replace: true });
   };
 
   // Handle navigation from bottom nav
   const handleBottomNavClick = (categoryId) => {
     setCurrentPage(categoryId);
-    setActiveCategory(categoryId);
-    setSearchTerm(''); // Reset search when switching categories
+    setActiveCategory(categoryId === 'home' ? 'all' : categoryId);
+    setSearchTerm('');
   };
 
   // Get filtered messages for current category
@@ -382,7 +389,7 @@ const ViewResponses = () => {
       return messages.filter(msg => msg.submittedByUser);
     } else {
       return messages.filter(
-        msg => msg.status.toLowerCase() === activeCategory.toLowerCase()
+        msg => (msg?.status?.toLowerCase?.() || '') === activeCategory.toLowerCase()
       );
     }
   };
@@ -467,7 +474,7 @@ const ViewResponses = () => {
             ) : (
               <div className="search-results-grid">
                 {homeSearchResults.map(message => (
-                  <div key={message.id} className="message-wrapper animate-fade-in search-highlight">
+                  <div key={message._id || message.id} className="message-wrapper animate-fade-in search-highlight">
                     <StudentMessageCard
                       data={{
                         ...message,
@@ -506,8 +513,24 @@ const ViewResponses = () => {
     );
   }
 
-  // Render category page
+  // Render category page — SAFE GUARD: if no matching category yet, fall back to home render
   const currentCategory = categories.find(cat => cat.id === currentPage);
+  if (!currentCategory) {
+    // This happens when location.state filter arrives before messages are loaded.
+    // Reset to home view to prevent blank screen.
+    return (
+      <div className="view-responses-container">
+        <div className="page-header">
+          <h1 className="page-title">View Responses</h1>
+          <p className="page-subtitle">Monitor and manage all message submissions</p>
+        </div>
+        <div style={{ padding: '3rem', textAlign: 'center' }}>
+          <div className="spinner-border text-primary" role="status" />
+          <p style={{ marginTop: '1rem' }}>Loading investigations...</p>
+        </div>
+      </div>
+    );
+  }
   const categoryMessages = getFilteredMessages();
 
   return (
@@ -521,7 +544,7 @@ const ViewResponses = () => {
         activeCategory={activeCategory}
         setActiveCategory={handleBottomNavClick}
         counts={counts}
-        onBackToHome={() => setCurrentPage('home')}
+        onBackToHome={() => { setCurrentPage('home'); setSearchTerm(''); }}
         onStatusUpdate={updateMessageStatus}
         onViewVerification={handleViewVerification}
       />

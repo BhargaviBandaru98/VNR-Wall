@@ -5,7 +5,6 @@ import { Users, School, PieChart, BarChart, ShieldCheck, Clock, ClipboardList, C
 import '../styles/AdminDashboard.css';
 import AdminReviewCard from '../components/AdminReviewCard';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const AdminDashboard = () => {
     const [data, setData] = useState(null);
@@ -16,7 +15,7 @@ const AdminDashboard = () => {
 
     const fetchAnalytics = async () => {
         try {
-            const res = await axios.get(`${BACKEND_URL}/api/admin/analytics`);
+            const res = await axios.get(`/api/admin/analytics`);
             setData(res.data);
         } catch (error) {
             console.error("Failed to fetch analytics:", error);
@@ -25,8 +24,10 @@ const AdminDashboard = () => {
 
     const fetchInReview = async () => {
         try {
-            const res = await axios.get(`${BACKEND_URL}/api/admin/in-review`);
-            setInReviewSubmissions(res.data);
+            const res = await axios.get(`/api/admin/in-review`);
+            // Normalize: API may return array directly or wrapped in object
+            const arr = Array.isArray(res.data) ? res.data : (res.data?.submissions || res.data?.data || []);
+            setInReviewSubmissions(arr);
         } catch (error) {
             console.error("Failed to fetch in-review submissions:", error);
         }
@@ -34,7 +35,7 @@ const AdminDashboard = () => {
 
     const fetchLearningRules = async () => {
         try {
-            const res = await axios.get(`${BACKEND_URL}/api/admin/learning-rules`);
+            const res = await axios.get(`/api/admin/learning-rules`);
             setLearningRules(res.data);
         } catch (error) {
             console.error("Failed to fetch learning rules:", error);
@@ -60,7 +61,7 @@ const AdminDashboard = () => {
 
     const handleToggleRule = async (id) => {
         try {
-            await axios.put(`${BACKEND_URL}/api/admin/learning-rules/${id}/toggle`);
+            await axios.put(`/api/admin/learning-rules/${id}/toggle`);
             setLearningRules(prev => prev.map(r => r.id === id ? { ...r, is_active: 1 - r.is_active } : r));
         } catch (error) {
             console.error("Failed to toggle rule:", error);
@@ -70,7 +71,7 @@ const AdminDashboard = () => {
     const handleDeleteRule = async (id) => {
         if (!window.confirm("Delete this learning rule permanently?")) return;
         try {
-            await axios.delete(`${BACKEND_URL}/api/admin/learning-rules/${id}`);
+            await axios.delete(`/api/admin/learning-rules/${id}`);
             setLearningRules(prev => prev.filter(r => r.id !== id));
         } catch (error) {
             console.error("Failed to delete rule:", error);
@@ -203,19 +204,19 @@ const AdminDashboard = () => {
             <section className="in-review-section">
                 <div className="section-header-flex">
                     <h2 className="section-title">🔍 In Review Submissions</h2>
-                    <span className="count-label">{inReviewSubmissions.length} Pending</span>
+                    <span className="count-label">{(inReviewSubmissions || []).length} Pending</span>
                 </div>
 
-                {inReviewSubmissions.length === 0 ? (
+                {(inReviewSubmissions || []).length === 0 ? (
                     <div className="empty-review-state glass-card">
                         <AlertCircle className="icon-info" />
                         <p>No submissions currently require manual review. System is efficient.</p>
                     </div>
                 ) : (
                     <div className="review-list">
-                        {inReviewSubmissions.map(sub => (
+                        {(inReviewSubmissions || []).map(sub => (
                             <AdminReviewCard 
-                                key={sub.id} 
+                                key={sub._id || sub.id} 
                                 data={sub} 
                                 onVerictSubmitted={handleVerdictSubmitted}
                             />

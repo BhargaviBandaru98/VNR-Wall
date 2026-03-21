@@ -8,7 +8,6 @@ import DiagnosticModal from '../components/DiagnosticModal';
 import StudentMessageCard from '../components/StudentMessageCards';
 import { Shield } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const SubmitPage = () => {
   const { user } = useAuth();
@@ -65,7 +64,7 @@ const SubmitPage = () => {
 
     const check = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/datas/${id}`);
+        const res = await axios.get(`/api/datas/${id}`);
         const dataPayload = res.data;
         const sub = dataPayload.submission || dataPayload;
 
@@ -110,7 +109,7 @@ const SubmitPage = () => {
     setShowModal(false);
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/api/user-check-data`, formData);
+      const res = await axios.post(`/api/user-check-data`, formData);
 
       if (res.data.success) {
         pollResult(res.data._id || res.data.id);

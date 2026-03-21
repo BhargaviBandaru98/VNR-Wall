@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Star, Shield, CheckCircle, X, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import '../styles/StudentMessagesCards.css';
 
 /* ────────────────────────────────────────────────────────
@@ -35,9 +36,11 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
   const [showModal, setShowModal] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
-  const isScam = data.status?.toLowerCase() === 'scam' || data.aiResult?.toLowerCase() === 'fake' || (data.scamScore >= 80);
-  const isGenuine = data.status?.toLowerCase() === 'genuine' || data.aiResult?.toLowerCase() === 'real';
+  const aiVerdict = (typeof data.aiResult === 'string' ? data.aiResult : data.aiResult?.verdict)?.toLowerCase();
+  const isScam = data.status?.toLowerCase() === 'scam' || aiVerdict === 'fake' || aiVerdict === 'scam' || (data.scamScore >= 80);
+  const isGenuine = data.status?.toLowerCase() === 'genuine' || aiVerdict === 'real' || aiVerdict === 'genuine';
 
   const getStatusBadge = () => {
     if (isScam) return <span className="badge badge-scam">🚨 SCAM</span>;
@@ -71,11 +74,7 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
   const hasAI = data.aiChecked && data.scamScore !== null;
 
   const handleCardClick = () => {
-    if (isAdmin && onViewVerification) {
-      onViewVerification(data);
-    } else {
-      setShowModal(true);
-    }
+    navigate(`/responses/${data._id || data.id}`);
   };
 
   return (

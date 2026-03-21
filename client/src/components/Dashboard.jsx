@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Building2, GraduationCap, ShieldCheck, Activity, Search, ShieldAlert, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DiagnosticModal from './DiagnosticModal';
 import '../styles/Dashboard.css';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:6105';
 
 const Dashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         totalInvestigations: 0,
         scamsAvoided: 0,
@@ -22,7 +23,7 @@ const Dashboard = () => {
         const fetchStats = async () => {
             if (!user?.email) return;
             try {
-                const response = await axios.get(`${BACKEND_URL}/api/user-stats/${user.email}`);
+                const response = await axios.get(`/api/user-stats/${user.email}`);
                 setStats(response.data);
             } catch (error) {
                 console.error("Failed to fetch dashboard stats", error);
@@ -77,8 +78,8 @@ const Dashboard = () => {
             </header>
 
             {/* Safety Impact Stats */}
-            <section className="dashboard-stats">
-                <div className="stat-card glass-card">
+            <section className="dashboard-stats" style={{ cursor: 'pointer' }}>
+                <div className="stat-card glass-card" onClick={() => navigate("/responses")}>
                     <div className="stat-icon search-icon">
                         <Search size={28} />
                     </div>
@@ -88,7 +89,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                <div className="stat-card glass-card">
+                <div className="stat-card glass-card" onClick={() => navigate('/responses', { state: { filter: 'scam' } })}>
                     <div className="stat-icon shield-icon">
                         <ShieldCheck size={28} />
                     </div>
@@ -113,7 +114,7 @@ const Dashboard = () => {
                             const StatusIcon = isScam ? ShieldAlert : item.status === 'Genuine' ? ShieldCheck : Activity;
 
                             return (
-                                <div key={item._id || item.id} className="activity-item" onClick={() => openModal(item)}>
+                                <div key={item._id || item.id} className="activity-item" onClick={() => navigate(`/responses/${item._id || item.id}`)}>
                                     <div className={`activity-icon ${statusClass}`}>
                                         <StatusIcon size={20} />
                                     </div>
@@ -133,7 +134,7 @@ const Dashboard = () => {
                     <div className="no-activity">
                         <Search size={40} opacity={0.3} />
                         <p>You haven't run any investigations yet.</p>
-                        <a href="/submit" className="btn-primary">Start a Verification</a>
+                        <button onClick={() => navigate("/submit")} className="btn-primary">Start a Verification</button>
                     </div>
                 )}
             </section>

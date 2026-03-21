@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import SubmitPage from './pages/SubmitPage';
 import ViewResponsesPage from './pages/ViewResponsePage.jsx';
+import ResponseDetail from './pages/ResponseDetail.jsx';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import './App.css';
@@ -115,6 +116,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ViewResponsesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/responses/:id"
+              element={
+                <ProtectedRoute>
+                  <ResponseDetail />
                 </ProtectedRoute>
               }
             />
