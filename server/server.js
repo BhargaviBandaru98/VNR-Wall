@@ -1379,6 +1379,42 @@ app.put('/api/update-status/:id', async (req, res) => {
   });
 });
 
+// Toggle Notification for In-Review submissions
+app.put('/api/update-notification/:id', async (req, res) => {
+  const { id } = req.params;
+  const { notification_requested } = req.body;
+  const notifyVal = notification_requested ? 1 : 0;
+
+  if (isMongoPrimary()) {
+    try {
+      const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { sqlite_id: Number(id) };
+      const updated = await Submission.findOneAndUpdate(
+        query,
+        { send_email_notification: notification_requested, notification_requested: notification_requested },
+        { new: true }
+      ).lean();
+      
+      if (!updated) return res.status(404).json({ error: 'Submission not found' });
+      
+      // Shadow SQLite
+      if (updated.sqlite_id) {
+        db.run(`UPDATE datacheck SET send_email_notification = ?, notification_requested = ? WHERE id = ?`, [notifyVal, notifyVal, updated.sqlite_id]);
+      }
+      return res.json({ success: true, notification_requested });
+    } catch (err) {
+      logger.logError('Mongo Notify Toggle Error', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // SQLite Fallback
+  const sql = `UPDATE datacheck SET send_email_notification = ?, notification_requested = ? WHERE id = ?`;
+  db.run(sql, [notifyVal, notifyVal, id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true, notification_requested });
+  });
+});
+
 // Enable Notification for In-Review submissions (Phase 2 + 2.7)
 app.put('/api/notify-request/:id', async (req, res) => {
   const { id } = req.params;

@@ -120,6 +120,7 @@ Repeated Indicators: ${campaignContext.indicators.join(', ')}`
 8. EXPIRY ANALYSIS: Compare the "MESSAGE RECEIVED DATE" with any deadlines, dates, or expired offers found in the content or web searches. If the opportunity is realistically expired or the date is ancient compared to the timeline of the post, return is_expired: true.
 9. LEARNING RULE WEIGHTING (CRITICAL): If the message matches an "ADMIN LEARNING RULE" Pattern, you MUST prioritize the Admin's Decision. If the rule says SCAM, increase scam_score to 95+. If it says GENUINE, increase genuine_score to 95+.
 10. CAMPAIGN REINFORCEMENT: If "SCAM CAMPAIGN CONTEXT" indicates a match, increase scam_score and mention "Campaign Detected" in the evidence.
+11. HIDDEN LINK ANALYSIS: If a URL is provided in the input, analyze: domain legitimacy, redirects, phishing patterns, and mismatch between text and URL.
 
 --- SCORING & OUTPUT ---
 - Simultaneously compute BOTH a scam_score AND a genuine_score (0-100).

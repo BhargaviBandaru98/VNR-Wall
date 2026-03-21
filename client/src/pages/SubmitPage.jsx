@@ -6,6 +6,7 @@ import axios from 'axios';
 import 'flatpickr/dist/flatpickr.min.css';
 import DiagnosticModal from '../components/DiagnosticModal';
 import StudentMessageCard from '../components/StudentMessageCards';
+import LinkSafetyModal from '../components/LinkSafetyModal';
 import { Shield } from 'lucide-react';
 
 
@@ -16,6 +17,10 @@ const SubmitPage = () => {
   const [pulseText, setPulseText] = useState("Analyzing Scammer Tactics...");
   const [showModal, setShowModal] = useState(false);
   const [resultData, setResultData] = useState(null);
+  
+  // Link Safety Modal states
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [isLinkRisky, setIsLinkRisky] = useState(false);
 
   const [formData, setFormData] = useState({
     userEmail: user?.email || '',
@@ -102,14 +107,31 @@ const SubmitPage = () => {
     }, 2000);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const checkHiddenLink = (msg) => {
+    return /click here|apply now|register here|join now|open link/i.test(msg);
+  };
+
+  const classifyLinkRisk = (msg) => {
+    const safeDomains = ['forms.gle', 'docs.google.com/forms', 'unstop.com', 'ibm.com'];
+    const lowerMsg = msg.toLowerCase();
+    
+    // If it explicitly contains a safe domain and no sketchy shortlinks, it's safer
+    const hasSafeDomain = safeDomains.some(d => lowerMsg.includes(d));
+    const hasRiskyDomain = /bit\.ly|tinyurl\.com|cutt\.ly/i.test(lowerMsg);
+    
+    if (hasSafeDomain && !hasRiskyDomain) return false;
+    return true; // Default to risky
+  };
+
+  const triggerVerification = async (finalMessage) => {
     setIsVerifying(true);
     setResultData(null);
     setShowModal(false);
+    setShowLinkModal(false);
 
     try {
-      const res = await axios.post(`/api/user-check-data`, formData);
+      const payload = { ...formData, message: finalMessage };
+      const res = await axios.post(`/api/user-check-data`, payload);
 
       if (res.data.success) {
         pollResult(res.data._id || res.data.id);
@@ -119,6 +141,27 @@ const SubmitPage = () => {
       alert("Submission Failed. Please try again.");
       setIsVerifying(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (checkHiddenLink(formData.message)) {
+      setIsLinkRisky(classifyLinkRisk(formData.message));
+      setShowLinkModal(true);
+      return;
+    }
+
+    triggerVerification(formData.message);
+  };
+
+  const handleLinkSubmit = (url) => {
+    const enhancedMessage = formData.message + "\n\n[USER_PROVIDED_URL]: " + url;
+    triggerVerification(enhancedMessage);
+  };
+
+  const handleLinkSkip = () => {
+    triggerVerification(formData.message);
   };
 
   useEffect(() => {
@@ -255,6 +298,14 @@ const SubmitPage = () => {
           <div className="pulse-scanner"></div>
         </div>
       )}
+
+      <LinkSafetyModal
+        isOpen={showLinkModal}
+        isRisky={isLinkRisky}
+        onClose={() => setShowLinkModal(false)}
+        onSubmitUrl={handleLinkSubmit}
+        onSkip={handleLinkSkip}
+      />
 
       {resultData && (
         <DiagnosticModal

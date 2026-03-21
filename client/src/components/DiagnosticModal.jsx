@@ -7,7 +7,7 @@ import '../styles/Stepper.css';
 
 const DiagnosticModal = ({ isOpen, onClose, data }) => {
     const [isCollapsed, setIsCollapsed]   = useState(false);
-    const [notifyEnabled, setNotifyEnabled] = useState(false);
+    const [notifyEnabled, setNotifyEnabled] = useState(data?.notification_requested || false);
     const [notifyLoading, setNotifyLoading] = useState(false);
     const [showRescue, setShowRescue]     = useState(false);
 
@@ -35,12 +35,12 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     // ── Exact API Data Binding (AI Base) ──────────────────────────────────────
     const seamScore    = aiResult?.scam_score ?? 0;
     const genuineScore = aiResult?.genuine_score ?? 0;
-    const confidence   = aiResult?.confidence || 'UNKNOWN';
+    const confidence   = aiResult?.confidence;
     const verdict      = aiResult?.verdict || 'IN_REVIEW';
     
     // ── Admin Override (CRITICAL) ─────────────────────────────────────────────
     const isAdminVerified = data?.submission_status === 'ADMIN_VERIFIED' || data?.verified_by_admin === 1 || data?.verified_by_admin === true;
-    const finalVerdictText = isAdminVerified ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') : (aiResult?.final_verdict || '');
+    const finalVerdictText = isAdminVerified ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') : (aiResult?.headline || aiResult?.agent_summary || aiResult?.final_verdict || '');
     
     // ── Verdict Routing ───────────────────────────────────────────────────────
     // Priority: Admin Decision > AI Verdict
@@ -73,15 +73,18 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
         setTimeout(onClose, 600);
     };
 
-    const handleNotifyMe = async () => {
-        if (alreadyNotified) return;
+    const handleNotifyToggle = async () => {
         setNotifyLoading(true);
         try {
             const targetId = data._id || data.id;
-            await axios.put(`/api/notify-request/${targetId}`);
-            setNotifyEnabled(true);
+            const newState = !notifyEnabled;
+            setNotifyEnabled(newState);
+            await axios.put(`/api/update-notification/${targetId}`, { 
+                notification_requested: newState 
+            });
         } catch (err) {
-            console.error('Failed to enable notification', err);
+            console.error('Failed to toggle notification', err);
+            setNotifyEnabled(!notifyEnabled); // revert on failure
         } finally {
             setNotifyLoading(false);
         }
@@ -157,7 +160,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                                         Authenticity Score: <strong>{genuineScore}%</strong>
                                     </p>
                                     <div className="probability-bar-wrapper">
-                                        <div className="probability-bar probability-bar--genuine" style={{ width: `${genuineScore}%` }} />
+                                        <div className="probability-bar probability-bar--genuine" style={{ width: `${genuineScore}%`, backgroundColor: '#22c55e' }} />
                                     </div>
                                 </>
                             )}
@@ -198,7 +201,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                 )}
 
                 {/* 3️⃣  Verification Confidence */}
-                {confidence && showAiAnalysis && (
+                {(confidence && confidence !== 'UNKNOWN') && showAiAnalysis && (
                     <div className={`confidence-strip confidence-strip--${confidence.toLowerCase()}`}>
                         <Shield size={14} />
                         <span>Verification Confidence: <strong>{confidence.toUpperCase()}</strong></span>
@@ -233,14 +236,40 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                 )}
 
                 {/* 4️⃣  Verification Evidence */}
-                {evidenceList.length > 0 && showAiAnalysis && (
+                {isClearGenuine && evidenceList.filter(e => e?.type === 'positive').length > 0 && showAiAnalysis && (
+                    <section className="forensic-evidence-section">
+                        <h4 className="section-label">🟢 Genuine Evidence</h4>
+                        <div className="evidence-glass-card">
+                            <ul className="evidence-list" style={{ listStyle: 'none', paddingLeft: 0 }}>
+                                {(evidenceList || []).filter(e => e?.type === 'positive').map((evidence, idx) => (
+                                    <li key={idx} style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'flex-start', 
+                                        gap: '8px', 
+                                        marginBottom: '10px',
+                                        color: getEvidenceColor(evidence?.type),
+                                        padding: '8px',
+                                        backgroundColor: 'rgba(255,255,255,0.4)',
+                                        borderRadius: '6px',
+                                        borderLeft: `4px solid ${getEvidenceColor(evidence?.type)}`
+                                    }}>
+                                        <div style={{ marginTop: '2px' }}>{getEvidenceIcon(evidence?.type)}</div>
+                                        <span style={{ color: '#334155' }}>{evidence?.text}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </section>
+                )}
+
+                {!isClearGenuine && evidenceList.length > 0 && showAiAnalysis && (
                     <section className="forensic-evidence-section">
                         <h4 className="section-label">
-                            {isClearScam ? '🔴 Scam Evidence' : isClearGenuine ? '🟢 Authenticity Analysis' : '🔵 AI Analysis Findings'}
+                            {isClearScam ? '🔴 Scam Evidence' : '🔵 AI Analysis Findings'}
                         </h4>
                         <div className="evidence-glass-card">
                             <ul className="evidence-list" style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                {evidenceList.map((evidence, idx) => (
+                                {(evidenceList || []).map((evidence, idx) => (
                                     <li key={idx} style={{ 
                                         display: 'flex', 
                                         alignItems: 'flex-start', 
@@ -267,7 +296,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                         <h4 className="section-label">🛡️ Protective Guidance</h4>
                         <div className="evidence-glass-card">
                             <ul className="safety-tips-list">
-                                {guidanceTips.map((tip, idx) => (
+                                {(guidanceTips || []).map((tip, idx) => (
                                     <li key={idx}>{tip}</li>
                                 ))}
                             </ul>
@@ -281,18 +310,18 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     {/* Phase 2: Notify Me — ONLY for In-Review for normal users */}
                     {isInReview && !isAdmin && (
                         <button
-                            className={`rescue-btn notify-me-btn ${alreadyNotified ? 'notify-me-btn--active' : ''}`}
-                            onClick={handleNotifyMe}
-                            disabled={alreadyNotified}
-                            title={alreadyNotified ? 'You already requested notification.' : 'Get notified when this is verified.'}
+                            className={`rescue-btn notify-me-btn ${notifyEnabled ? 'notify-me-btn--active active' : ''}`}
+                            onClick={handleNotifyToggle}
+                            disabled={notifyLoading}
+                            title={notifyEnabled ? 'Click to unsubscribe from updates.' : 'Get notified when this is verified.'}
                         >
                             <Bell size={18} />
                             <span>
                                 {notifyLoading
-                                    ? 'ENABLING...'
-                                    : alreadyNotified
-                                    ? '🔔 Notification Enabled'
-                                    : 'NOTIFY ME WHEN VERIFIED'}
+                                    ? 'UPDATING...'
+                                    : notifyEnabled
+                                    ? '🔔 Notifications ON'
+                                    : '🔕 Notify Me'}
                             </span>
                         </button>
                     )}

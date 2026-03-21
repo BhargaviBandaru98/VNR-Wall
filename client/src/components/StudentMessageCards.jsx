@@ -74,7 +74,11 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
   const hasAI = data.aiChecked && data.scamScore !== null;
 
   const handleCardClick = () => {
-    navigate(`/responses/${data._id || data.id}`);
+    if (!isAdmin) {
+      setShowModal(true);
+    } else {
+      navigate(`/responses/${data._id || data.id}`);
+    }
   };
 
   return (
