@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ✅ added useEffect
 import { Shield, AlertTriangle, CheckCircle2, Info, ArrowRight, X, Bell, UserSearch, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import '../styles/DiagnosticModal.css';
@@ -10,6 +10,36 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     const [notifyEnabled, setNotifyEnabled] = useState(data?.notification_requested || false);
     const [notifyLoading, setNotifyLoading] = useState(false);
     const [showRescue, setShowRescue] = useState(false);
+
+    // ✅ ADD: Prevent background scroll
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'auto';
+        }
+
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
+    }, [isOpen]);
+
+    // ✅ ADD: ESC key to close modal
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        if (isOpen) {
+            window.addEventListener('keydown', handleEsc);
+        }
+
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+        };
+    }, [isOpen, onClose]);
 
     if (!isOpen || !data) return null;
 
@@ -44,15 +74,12 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     // ── Admin Override (CRITICAL) ─────────────────────────────────────────────
     const isAdminVerified = data?.submission_status === 'ADMIN_VERIFIED' || data?.verified_by_admin === 1 || data?.verified_by_admin === true;
     
-    // Robust Summary Text Fallback
     const summaryText = aiResult?.summary || aiResult?.analysis_summary || aiResult?.message || aiResult?.verdict_message || aiResult?.final_verdict || "";
     
     const finalVerdictText = isAdminVerified 
         ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') 
         : (summaryText || aiResult?.headline || aiResult?.agent_summary);
 
-    // ── Verdict Routing ───────────────────────────────────────────────────────
-    // Priority: Admin Decision > Status > AI Verdict
     const isClearScam = isAdminVerified ? data?.final_result?.toUpperCase() === 'SCAM' : (statusString === 'SCAM' || statusString === 'FAKE' || aiVerdictString === 'SCAM' || aiVerdictString === 'FAKE');
     const isClearGenuine = isAdminVerified ? data?.final_result?.toUpperCase() === 'GENUINE' : (statusString === 'GENUINE' || statusString === 'REAL' || aiVerdictString === 'GENUINE' || aiVerdictString === 'REAL');
     const isInReview = !isAdminVerified && !isClearScam && !isClearGenuine;
@@ -62,13 +89,9 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
         : (Array.isArray(aiResult?.evidence) ? aiResult.evidence : (Array.isArray(aiResult?.details) ? aiResult.details : (Array.isArray(aiResult?.evidence_analysis) ? aiResult.evidence_analysis : [])));
     const guidanceTips = Array.isArray(aiResult?.protective_guidance) ? aiResult.protective_guidance : [];
 
-    // ── Role-Based Display Check ──────────────────────────────────────────────
-    const showAiAnalysis = !isInReview || isAdmin; // Hide AI scores/evidence for normal users when in review
-
-    // ── Expiry Check ──────────────────────────────────────────────────────────
+    const showAiAnalysis = !isInReview || isAdmin;
     const isExpired = aiResult?.is_expired || false;
 
-    // ── Notification Deduplication ────────────────────────────────────────────
     const alreadyNotified =
         data?.send_email_notification === 1 ||
         data?.send_email_notification === true ||
@@ -76,7 +99,6 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
         data?.notification_requested === true ||
         notifyEnabled;
 
-    // ── Handlers ──────────────────────────────────────────────────────────────
     const handleOk = () => {
         onClose();
     };
@@ -92,7 +114,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
             });
         } catch (err) {
             console.error('Failed to toggle notification', err);
-            setNotifyEnabled(!notifyEnabled); // revert on failure
+            setNotifyEnabled(!notifyEnabled);
         } finally {
             setNotifyLoading(false);
         }
@@ -104,12 +126,11 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
         if (urlMatch) window.open(urlMatch[0], '_blank', 'noopener,noreferrer');
     };
 
-    // ── Dynamic Color Mapping for Evidence ────────────────────────────────────
     const getEvidenceColor = (type) => {
         switch (type?.toLowerCase()) {
-            case 'positive': return '#10b981'; // green
-            case 'negative': return '#ef4444'; // red
-            default: return '#f59e0b'; // yellow (warning)
+            case 'positive': return '#10b981';
+            case 'negative': return '#ef4444';
+            default: return '#f59e0b';
         }
     };
 
@@ -122,8 +143,16 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     };
 
     return (
-        <div className={`diagnostic-overlay ${isOpen ? 'active' : ''} ${isCollapsed ? 'collapsing' : ''}`}>
-            <div className="diagnostic-modal-content glass-effect">
+        // ✅ EDIT: added onClick for outside click
+        <div
+            className={`diagnostic-overlay ${isOpen ? 'active' : ''} ${isCollapsed ? 'collapsing' : ''}`}
+            onClick={onClose}
+        >
+            {/* ✅ EDIT: stop propagation */}
+            <div
+                className="diagnostic-modal-content glass-effect"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <button className="close-x" onClick={onClose}><X size={20} /></button>
 
                 {/* ── Header Badge ──────────────────────────────────────────── */}

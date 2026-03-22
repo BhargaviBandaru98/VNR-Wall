@@ -35,7 +35,7 @@
         inset 0 0 0 1px rgba(255, 255, 255, 0.3);
     transform: translateY(40px) scale(0.95);
     transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    scrollbar-width: thin;
+    scrollbar-width: none; /* Firefox */
     scrollbar-color: #cbd5e1 transparent;
 }
 
@@ -81,7 +81,7 @@
 }
 
 .verdict-badge {
-    display: flex;
+    /* display: flex; */
     align-items: center;
     gap: 0.8rem;
     font-size: 0.85rem;

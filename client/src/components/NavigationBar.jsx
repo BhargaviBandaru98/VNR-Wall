@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import './Navi.css';
 import logo from '../assets/logo2.jpeg';
 import '../styles/Navbar.css';
-import { Home, ShieldCheck, History, User, ChartLine, LayoutDashboard, LogOut } from 'lucide-react';
+import { Home, ShieldCheck, History, User, ChartLine, LayoutDashboard, LogOut, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 function NavigationBar() {
@@ -102,7 +102,8 @@ function NavigationBar() {
           <li className="nav-item">
             <Link className="nav" to="login">
               <button className="btn btn-primary px-3 mx-2">
-                <LogOut size={16} className="nav-icon" style={{ marginRight: '6px' }} /> {isLoggedIn ? 'Profile' : 'Login'}
+                {isLoggedIn ? <User size={16} className="nav-icon" style={{ marginRight: '6px' }}  /> : <LogIn size={16} className="nav-icon" style={{ marginRight: '6px' }} />}
+                {isLoggedIn ? 'Profile' : 'Login'}
               </button>
             </Link>
           </li>

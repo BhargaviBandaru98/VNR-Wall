@@ -176,7 +176,7 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
 
         {/* Message Content */}
         <div className="section message-section" onClick={e => e.stopPropagation()} style={{ marginTop: '1rem' }}>
-          <div className="section-header">
+          <div className="section-header" onClick={() => setIsExpanded(!isExpanded)}>
             <span className="section-title">💬 Message Content</span>
             <button onClick={() => setIsExpanded(!isExpanded)} className="expand-button">
               {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

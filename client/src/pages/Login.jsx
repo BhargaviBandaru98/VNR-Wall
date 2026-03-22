@@ -50,7 +50,7 @@ const Login = () => {
               window.history.replaceState({}, document.title, "/login");
 
               // Show success message with role
-              alert(`Welcome ${loggedInUser.name} !`);
+              // alert(`Welcome ${loggedInUser.name} !`);
 
               // Redirect based on profile status
               if (loggedInUser.isAdmin) {
