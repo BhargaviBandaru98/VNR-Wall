@@ -6,10 +6,10 @@ import '../styles/Stepper.css';
 
 
 const DiagnosticModal = ({ isOpen, onClose, data }) => {
-    const [isCollapsed, setIsCollapsed]   = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const [notifyEnabled, setNotifyEnabled] = useState(data?.notification_requested || false);
     const [notifyLoading, setNotifyLoading] = useState(false);
-    const [showRescue, setShowRescue]     = useState(false);
+    const [showRescue, setShowRescue] = useState(false);
 
     if (!isOpen || !data) return null;
 
@@ -33,24 +33,27 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     }
 
     // ── Exact API Data Binding (AI Base) ──────────────────────────────────────
-    const seamScore    = aiResult?.scam_score ?? 0;
+    const seamScore = aiResult?.scam_score ?? 0;
     const genuineScore = aiResult?.genuine_score ?? 0;
-    const confidence   = aiResult?.confidence;
-    const verdict      = aiResult?.verdict || 'IN_REVIEW';
-    
+    const confidence = aiResult?.confidence;
+
+    // Evaluate Verdict globally
+    const aiVerdictString = (typeof aiResult === 'string' ? aiResult : aiResult?.verdict)?.toUpperCase() || '';
+    const statusString = data?.status?.toUpperCase() || '';
+
     // ── Admin Override (CRITICAL) ─────────────────────────────────────────────
     const isAdminVerified = data?.submission_status === 'ADMIN_VERIFIED' || data?.verified_by_admin === 1 || data?.verified_by_admin === true;
-    const finalVerdictText = isAdminVerified ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') : (aiResult?.headline || aiResult?.agent_summary || aiResult?.final_verdict || '');
-    
-    // ── Verdict Routing ───────────────────────────────────────────────────────
-    // Priority: Admin Decision > AI Verdict
-    const isClearScam    = isAdminVerified ? data?.final_result?.toUpperCase() === 'SCAM' : verdict === 'SCAM';
-    const isClearGenuine = isAdminVerified ? data?.final_result?.toUpperCase() === 'GENUINE' : verdict === 'GENUINE';
-    const isInReview     = !isAdminVerified && (verdict === 'SUSPICIOUS' || (!isClearScam && !isClearGenuine));
+    const finalVerdictText = isAdminVerified ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') : (aiResult?.headline || aiResult?.agent_summary);
 
-    const evidenceList = isAdminVerified && data?.admin_reason 
+    // ── Verdict Routing ───────────────────────────────────────────────────────
+    // Priority: Admin Decision > Status > AI Verdict
+    const isClearScam = isAdminVerified ? data?.final_result?.toUpperCase() === 'SCAM' : (statusString === 'SCAM' || statusString === 'FAKE' || aiVerdictString === 'SCAM' || aiVerdictString === 'FAKE');
+    const isClearGenuine = isAdminVerified ? data?.final_result?.toUpperCase() === 'GENUINE' : (statusString === 'GENUINE' || statusString === 'REAL' || aiVerdictString === 'GENUINE' || aiVerdictString === 'REAL');
+    const isInReview = !isAdminVerified && !isClearScam && !isClearGenuine;
+
+    const evidenceList = isAdminVerified && data?.admin_reason
         ? [{ type: 'warning', text: `Admin Insight: ${data.admin_reason}` }]
-        : (Array.isArray(aiResult?.evidence_analysis) ? aiResult.evidence_analysis : []);
+        : (Array.isArray(aiResult?.evidence) ? aiResult.evidence : (Array.isArray(aiResult?.details) ? aiResult.details : (Array.isArray(aiResult?.evidence_analysis) ? aiResult.evidence_analysis : [])));
     const guidanceTips = Array.isArray(aiResult?.protective_guidance) ? aiResult.protective_guidance : [];
 
     // ── Role-Based Display Check ──────────────────────────────────────────────
@@ -61,16 +64,15 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
 
     // ── Notification Deduplication ────────────────────────────────────────────
     const alreadyNotified =
-        data?.send_email_notification === 1   ||
+        data?.send_email_notification === 1 ||
         data?.send_email_notification === true ||
-        data?.notification_requested  === 1   ||
-        data?.notification_requested  === true ||
+        data?.notification_requested === 1 ||
+        data?.notification_requested === true ||
         notifyEnabled;
 
     // ── Handlers ──────────────────────────────────────────────────────────────
     const handleOk = () => {
-        setIsCollapsed(true);
-        setTimeout(onClose, 600);
+        onClose();
     };
 
     const handleNotifyToggle = async () => {
@@ -79,8 +81,8 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
             const targetId = data._id || data.id;
             const newState = !notifyEnabled;
             setNotifyEnabled(newState);
-            await axios.put(`/api/update-notification/${targetId}`, { 
-                notification_requested: newState 
+            await axios.put(`/api/update-notification/${targetId}`, {
+                notification_requested: newState
             });
         } catch (err) {
             console.error('Failed to toggle notification', err);
@@ -91,22 +93,22 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
     };
 
     const handleProceedToApply = () => {
-        const text     = data?.message || '';
+        const text = data?.message || '';
         const urlMatch = text.match(/https?:\/\/[^\s]+/i);
         if (urlMatch) window.open(urlMatch[0], '_blank', 'noopener,noreferrer');
     };
 
     // ── Dynamic Color Mapping for Evidence ────────────────────────────────────
     const getEvidenceColor = (type) => {
-        switch(type?.toLowerCase()) {
+        switch (type?.toLowerCase()) {
             case 'positive': return '#10b981'; // green
             case 'negative': return '#ef4444'; // red
             default: return '#f59e0b'; // yellow (warning)
         }
     };
-    
+
     const getEvidenceIcon = (type) => {
-        switch(type?.toLowerCase()) {
+        switch (type?.toLowerCase()) {
             case 'positive': return <ShieldCheck size={16} color="#10b981" />;
             case 'negative': return <AlertTriangle size={16} color="#ef4444" />;
             default: return <AlertCircle size={16} color="#f59e0b" />;
@@ -132,7 +134,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     <div className="verdict-banner verdict-banner--scam">
                         <AlertTriangle size={26} />
                         <div>
-                            <p className="verdict-banner__headline">⚠️ {finalVerdictText || "This message has been identified as a SCAM."}</p>
+                            <p className="verdict-banner__headline">⚠️ {finalVerdictText}</p>
 
                             {showAiAnalysis && !isAdminVerified && (
                                 <>
@@ -152,7 +154,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     <div className="verdict-banner verdict-banner--genuine">
                         <CheckCircle2 size={26} />
                         <div>
-                            <p className="verdict-banner__headline">✔️ {finalVerdictText || "This message has been verified as GENUINE."}</p>
+                            <p className="verdict-banner__headline">✔️ {finalVerdictText}</p>
 
                             {showAiAnalysis && !isAdminVerified && (
                                 <>
@@ -236,55 +238,37 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                 )}
 
                 {/* 4️⃣  Verification Evidence */}
-                {isClearGenuine && evidenceList.filter(e => e?.type === 'positive').length > 0 && showAiAnalysis && (
-                    <section className="forensic-evidence-section">
-                        <h4 className="section-label">🟢 Genuine Evidence</h4>
-                        <div className="evidence-glass-card">
-                            <ul className="evidence-list" style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                {(evidenceList || []).filter(e => e?.type === 'positive').map((evidence, idx) => (
-                                    <li key={idx} style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'flex-start', 
-                                        gap: '8px', 
-                                        marginBottom: '10px',
-                                        color: getEvidenceColor(evidence?.type),
-                                        padding: '8px',
-                                        backgroundColor: 'rgba(255,255,255,0.4)',
-                                        borderRadius: '6px',
-                                        borderLeft: `4px solid ${getEvidenceColor(evidence?.type)}`
-                                    }}>
-                                        <div style={{ marginTop: '2px' }}>{getEvidenceIcon(evidence?.type)}</div>
-                                        <span style={{ color: '#334155' }}>{evidence?.text}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </section>
-                )}
-
-                {!isClearGenuine && evidenceList.length > 0 && showAiAnalysis && (
+                {evidenceList.length > 0 && showAiAnalysis && (
                     <section className="forensic-evidence-section">
                         <h4 className="section-label">
-                            {isClearScam ? '🔴 Scam Evidence' : '🔵 AI Analysis Findings'}
+                            {isClearScam ? '🔴 Scam Evidence' : isClearGenuine ? '🟢 Genuine Analysis' : '🔵 AI Analysis Findings'}
                         </h4>
                         <div className="evidence-glass-card">
                             <ul className="evidence-list" style={{ listStyle: 'none', paddingLeft: 0 }}>
-                                {(evidenceList || []).map((evidence, idx) => (
-                                    <li key={idx} style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'flex-start', 
-                                        gap: '8px', 
-                                        marginBottom: '10px',
-                                        color: getEvidenceColor(evidence?.type),
-                                        padding: '8px',
-                                        backgroundColor: 'rgba(255,255,255,0.4)',
-                                        borderRadius: '6px',
-                                        borderLeft: `4px solid ${getEvidenceColor(evidence?.type)}`
-                                    }}>
-                                        <div style={{ marginTop: '2px' }}>{getEvidenceIcon(evidence?.type)}</div>
-                                        <span style={{ color: '#334155' }}>{evidence?.text}</span>
-                                    </li>
-                                ))}
+                                {(evidenceList || []).map((evidence, idx) => {
+                                    const text = typeof evidence === 'string' ? evidence : evidence?.text;
+                                    const type = typeof evidence === 'string' ? (isClearGenuine ? 'positive' : 'negative') : evidence?.type;
+                                    const color = isClearGenuine ? '#10b981' : getEvidenceColor(type);
+                                    const icon = isClearGenuine ? <ShieldCheck size={16} color="#10b981" /> : getEvidenceIcon(type);
+
+                                    if (!text) return null;
+                                    return (
+                                        <li key={idx} style={{
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: '8px',
+                                            marginBottom: '10px',
+                                            color: color,
+                                            padding: '8px',
+                                            backgroundColor: 'rgba(255,255,255,0.4)',
+                                            borderRadius: '6px',
+                                            borderLeft: `4px solid ${color}`
+                                        }}>
+                                            <div style={{ marginTop: '2px' }}>{icon}</div>
+                                            <span style={{ color: '#334155' }}>{text}</span>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         </div>
                     </section>
@@ -320,12 +304,12 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                                 {notifyLoading
                                     ? 'UPDATING...'
                                     : notifyEnabled
-                                    ? '🔔 Notifications ON'
-                                    : '🔕 Notify Me'}
+                                        ? '🔔 Notifications ON'
+                                        : '🔕 Notify Me'}
                             </span>
                         </button>
                     )}
-                    
+
                     {/* Admin Actions placeholder */}
                     {isInReview && isAdmin && !isAdminVerified && (
                         <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '10px' }}>

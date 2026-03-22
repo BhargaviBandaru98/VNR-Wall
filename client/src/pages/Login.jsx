@@ -95,8 +95,8 @@ const Login = () => {
     // const clientId = "454432176985-mau86u28qd49dd3n2hfeh7mpi75qlse5.apps.googleusercontent.com";
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-    // ✅ FIXED: Explicitly set to port 2999 to eliminate mismatch errors
-    const redirectUri = "http://localhost:2999/login";
+    // Must match exactly what is registered in Google Cloud Console
+    const redirectUri = "http://localhost:3105/login";
 
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 
@@ -116,16 +116,6 @@ const Login = () => {
 
   const handleNavigate = (path) => {
     navigate(path);
-  };
-
-  const devLogin = async (email) => {
-    try {
-      const { data } = await axios.post('http://localhost:6105/api/dev/login', { email });
-      if (data.success) {
-        login(data.user);
-        navigate(data.user.user_role === 'Admin' ? '/admin/analytics' : '/');
-      }
-    } catch (e) { console.error('Dev bypass failed', e); }
   };
 
   // If user is authenticated, show profile
@@ -384,13 +374,6 @@ const Login = () => {
                 )}
               </button>
             </div>
-
-            {import.meta.env.MODE === 'development' && (
-              <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                <button onClick={() => devLogin('audit@vnr.edu')} style={{ padding: '8px 16px', borderRadius: '6px', background: '#3b82f6', color: 'white' }}>Mock Student</button>
-                <button onClick={() => devLogin('bandarubhargavi664@gmail.com')} style={{ padding: '8px 16px', borderRadius: '6px', background: '#10b981', color: 'white' }}>Mock Admin</button>
-              </div>
-            )}
 
             {/* Security Message */}
             <div className="security-message">

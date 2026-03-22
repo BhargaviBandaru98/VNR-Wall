@@ -38,9 +38,13 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const aiVerdict = (typeof data.aiResult === 'string' ? data.aiResult : data.aiResult?.verdict)?.toLowerCase();
-  const isScam = data.status?.toLowerCase() === 'scam' || aiVerdict === 'fake' || aiVerdict === 'scam' || (data.scamScore >= 80);
-  const isGenuine = data.status?.toLowerCase() === 'genuine' || aiVerdict === 'real' || aiVerdict === 'genuine';
+  const aiResult = data.ai_result || data.aiResult;
+  const aiVerdict = (typeof aiResult === 'string' ? aiResult : aiResult?.verdict)?.toLowerCase() || '';
+  const aiScamScore = aiResult?.scam_score ?? 0;
+  const aiConfidence = aiResult?.confidence ?? 'UNKNOWN';
+  
+  const isScam = data.status?.toLowerCase() === 'scam' || data.status?.toLowerCase() === 'fake' || aiVerdict === 'fake' || aiVerdict === 'scam';
+  const isGenuine = data.status?.toLowerCase() === 'genuine' || data.status?.toLowerCase() === 'real' || aiVerdict === 'real' || aiVerdict === 'genuine';
 
   const getStatusBadge = () => {
     if (isScam) return <span className="badge badge-scam">🚨 SCAM</span>;
@@ -71,26 +75,19 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
     if (onStatusUpdate) onStatusUpdate(data.id, newStatus);
   };
 
-  const hasAI = data.aiChecked && data.scamScore !== null;
+  const hasAI = !!aiResult;
 
   const handleCardClick = () => {
-    if (!isAdmin) {
-      setShowModal(true);
-    } else {
-      navigate(`/responses/${data._id || data.id}`);
-    }
+    setShowModal(true);
   };
 
   return (
     <>
-      {/* Modal Integration - fallback for non-admins */}
-      {!isAdmin && (
-        <DiagnosticModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          data={data}
-        />
-      )}
+      <DiagnosticModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        data={data}
+      />
 
       {/* ── Card ── */}
       <div
@@ -153,12 +150,12 @@ const StudentMessageCard = ({ data, onStatusUpdate, onViewVerification }) => {
         {hasAI && (isAdmin || isScam || isGenuine) && (
           <div className="card-ai-strip">
             <span className="ai-strip-fake">
-              🚨 {data.scamScore}% Scam
+              🚨 {aiScamScore}% Scam
             </span>
             <span className="ai-strip-genuine">
-              ✅ {Math.max(0, 100 - data.scamScore)}% Real
+              ✅ {Math.max(0, 100 - aiScamScore)}% Real
             </span>
-            <span className="ai-strip-conf">{data.aiConfidence} confidence</span>
+            <span className="ai-strip-conf">{aiConfidence} confidence</span>
           </div>
         )}
 

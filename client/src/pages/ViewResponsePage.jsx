@@ -224,12 +224,16 @@ const ViewResponses = () => {
           messageContent: item.message || '',
           tags: Array.isArray(item.flags) ? item.flags : (item.flags ? (() => { try { return JSON.parse(item.flags); } catch(e) { return []; } })() : []),
           submittedByUser: item.user_email === user?.email,
-          // AI Verification fields
-          scamScore: item.ai_score ?? null,
-          aiResult: item.ai_result ?? null,
-          aiConfidence: item.ai_confidence ?? null,
+          // AI Verification fields — keep BOTH keys so DiagnosticModal (snake_case) and
+          // card strip (camelCase) both find the data without any transformation
+          ai_result: item.ai_result ?? null,       // used by DiagnosticModal directly
+          aiResult: item.ai_result ?? null,         // kept for backwards compat in card strip
+          notification_requested: item.notification_requested ?? false,
+          send_email_notification: item.send_email_notification ?? false,
+          scamScore: item.ai_result?.scam_score ?? item.ai_score ?? null,
+          aiConfidence: item.ai_result?.confidence ?? item.ai_confidence ?? null,
           aiEvidence: item.ai_evidence ?? null,
-          aiChecked: !!item.ai_checked,
+          aiChecked: !!(item.ai_checked || item.ai_result),
         }));
         setMessages(serverMessages);
         setLoading(false);
