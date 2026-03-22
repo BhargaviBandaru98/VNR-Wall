@@ -43,7 +43,13 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
 
     // ── Admin Override (CRITICAL) ─────────────────────────────────────────────
     const isAdminVerified = data?.submission_status === 'ADMIN_VERIFIED' || data?.verified_by_admin === 1 || data?.verified_by_admin === true;
-    const finalVerdictText = isAdminVerified ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') : (aiResult?.headline || aiResult?.agent_summary);
+    
+    // Robust Summary Text Fallback
+    const summaryText = aiResult?.summary || aiResult?.analysis_summary || aiResult?.message || aiResult?.verdict_message || aiResult?.final_verdict || "";
+    
+    const finalVerdictText = isAdminVerified 
+        ? (data?.final_result === 'SCAM' ? 'Verified as SCAM by Admin' : 'Verified as GENUINE by Admin') 
+        : (summaryText || aiResult?.headline || aiResult?.agent_summary);
 
     // ── Verdict Routing ───────────────────────────────────────────────────────
     // Priority: Admin Decision > Status > AI Verdict
@@ -134,7 +140,17 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     <div className="verdict-banner verdict-banner--scam">
                         <AlertTriangle size={26} />
                         <div>
-                            <p className="verdict-banner__headline">⚠️ {finalVerdictText}</p>
+                            {/* TOP PRIORITY: Render summaryText as the primary diagnostic insight */}
+                            {summaryText && (
+                                <div className="ai-summary-text">
+                                    ⚠️ {summaryText}
+                                </div>
+                            )}
+
+                            {/* Fallback Headline if summaryText is somehow different or missing */}
+                            {(!summaryText || (finalVerdictText && finalVerdictText !== summaryText)) && (
+                                <p className="verdict-banner__headline">⚠️ {finalVerdictText}</p>
+                            )}
 
                             {showAiAnalysis && !isAdminVerified && (
                                 <>
@@ -154,7 +170,17 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                     <div className="verdict-banner verdict-banner--genuine">
                         <CheckCircle2 size={26} />
                         <div>
-                            <p className="verdict-banner__headline">✔️ {finalVerdictText}</p>
+                            {/* TOP PRIORITY: Render summaryText as the primary diagnostic insight */}
+                            {summaryText && (
+                                <div className="ai-summary-text">
+                                    ✔️ {summaryText}
+                                </div>
+                            )}
+
+                            {/* Fallback Headline if summaryText is somehow different or missing */}
+                            {(!summaryText || (finalVerdictText && finalVerdictText !== summaryText)) && (
+                                <p className="verdict-banner__headline">✔️ {finalVerdictText}</p>
+                            )}
 
                             {showAiAnalysis && !isAdminVerified && (
                                 <>

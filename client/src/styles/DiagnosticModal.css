@@ -144,6 +144,14 @@
     opacity: 0.9;
 }
 
+.ai-summary-text {
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.5;
+    font-size: 1.05rem;
+}
+
+
 /* Inline probability bar inside banner */
 .probability-bar-wrapper {
     height: 8px;
