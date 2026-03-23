@@ -95,8 +95,8 @@ const Login = () => {
     // const clientId = "454432176985-mau86u28qd49dd3n2hfeh7mpi75qlse5.apps.googleusercontent.com";
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-    // Must match exactly what is registered in Google Cloud Console
-    const redirectUri = "http://localhost:3105/login";
+    // ✅ PROD: Reads redirect URI from env to support both local dev and production
+    const redirectUri = (import.meta.env.VITE_AUTH_URL || 'https://dev-wall.vjstartup.com') + '/login';
 
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 
@@ -116,6 +116,16 @@ const Login = () => {
 
   const handleNavigate = (path) => {
     navigate(path);
+  };
+
+  const devLogin = async (email) => {
+    try {
+      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'https://dev-wall.vjstartup.com'}/api/dev/login`, { email });
+      if (data.success) {
+        login(data.user);
+        navigate(data.user.user_role === 'Admin' ? '/admin/analytics' : '/');
+      }
+    } catch (e) { console.error('Dev bypass failed', e); }
   };
 
   // If user is authenticated, show profile

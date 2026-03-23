@@ -7,27 +7,27 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 
 // Support both ADMIN_EMAIL_LIST (new) and ADMIN_EMAILS (legacy) env keys
 const ADMIN_EMAILS = (process.env.ADMIN_EMAIL_LIST || process.env.ADMIN_EMAILS || '')
-    .split(',').map(e => e.trim()).filter(Boolean);
+  .split(',').map(e => e.trim()).filter(Boolean);
 
 if (!EMAIL_USER || !EMAIL_PASS) {
-    console.warn('[emailService] EMAIL_USER or EMAIL_PASS not set — admin alerts will be skipped.');
+  console.warn('[emailService] EMAIL_USER or EMAIL_PASS not set — admin alerts will be skipped.');
 }
 if (ADMIN_EMAILS.length === 0) {
-    console.warn('[emailService] No admin emails configured (ADMIN_EMAIL_LIST is empty).');
+  console.warn('[emailService] No admin emails configured (ADMIN_EMAIL_LIST is empty).');
 } else {
-    console.log('[emailService] Admin alert list:', ADMIN_EMAILS.join(', '));
+  console.log('[emailService] Admin alert list:', ADMIN_EMAILS.join(', '));
 }
 
 // Create transporter lazily so missing credentials only warn, never crash
 let transporter = null;
 function getTransporter() {
-    if (!transporter && EMAIL_USER && EMAIL_PASS) {
-        transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-        });
-    }
-    return transporter;
+  if (!transporter && EMAIL_USER && EMAIL_PASS) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    });
+  }
+  return transporter;
 }
 
 /**
@@ -37,20 +37,20 @@ function getTransporter() {
  * @param {string} investigationPath
  */
 async function sendAdminAlert(submissionData, aiResult, investigationPath) {
-    const t = getTransporter();
-    if (!t || ADMIN_EMAILS.length === 0) {
-        console.warn('[emailService] Skipping alert — transporter not configured or no admin emails.');
-        return;
-    }
+  const t = getTransporter();
+  if (!t || ADMIN_EMAILS.length === 0) {
+    console.warn('[emailService] Skipping alert — transporter not configured or no admin emails.');
+    return;
+  }
 
-    const { id, name, roll, branch, message, category, platform, sender } = submissionData;
-    const { fake_score, genuine_score, result, confidence, evidence, genuine_evidence } = aiResult;
+  const { id, name, roll, branch, message, category, platform, sender } = submissionData;
+  const { fake_score, genuine_score, result, confidence, evidence, genuine_evidence } = aiResult;
 
-    const subject = `⚠️ VNR Wall Alert — Suspicious ${category || 'submission'} needs review (ID: #${id})`;
+  const subject = `⚠️ VNR Wall Alert — Suspicious ${category || 'submission'} needs review (ID: #${id})`;
 
-    const scoreColor = fake_score >= 80 ? '#c0392b' : fake_score >= 60 ? '#e67e22' : '#27ae60';
+  const scoreColor = fake_score >= 80 ? '#c0392b' : fake_score >= 60 ? '#e67e22' : '#27ae60';
 
-    const html = `
+  const html = `
 <div style="font-family:Arial,sans-serif;max-width:660px;margin:auto;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
   <div style="background:#c0392b;padding:18px 24px;">
     <h2 style="color:#fff;margin:0;">⚠️ Suspicious Submission — Manual Review Required</h2>
@@ -93,17 +93,17 @@ async function sendAdminAlert(submissionData, aiResult, investigationPath) {
 </div>
 `;
 
-    try {
-        await t.sendMail({
-            from: `"VNR Wall Alert" <${EMAIL_USER}>`,
-            to: ADMIN_EMAILS.join(', '),
-            subject,
-            html,
-        });
-        console.log('[emailService] ✅ Admin alert sent for ID:', id, '→', ADMIN_EMAILS.join(', '));
-    } catch (err) {
-        console.error('[emailService] ❌ Failed to send alert for ID:', id, '—', err.message);
-    }
+  try {
+    await t.sendMail({
+      from: `"VNR Wall Alert" <${EMAIL_USER}>`,
+      to: ADMIN_EMAILS.join(', '),
+      subject,
+      html,
+    });
+    console.log('[emailService] ✅ Admin alert sent for ID:', id, '→', ADMIN_EMAILS.join(', '));
+  } catch (err) {
+    console.error('[emailService] ❌ Failed to send alert for ID:', id, '—', err.message);
+  }
 }
 
 /**
@@ -112,30 +112,30 @@ async function sendAdminAlert(submissionData, aiResult, investigationPath) {
  * @param {object} datacheckRow
  */
 async function sendUserNotification(userEmail, datacheckRow) {
-    const t = getTransporter();
-    if (!t || !userEmail) {
-        console.warn('[emailService] Skipping user notification — transporter not configured or missing email.');
-        return;
-    }
+  const t = getTransporter();
+  if (!t || !userEmail) {
+    console.warn('[emailService] Skipping user notification — transporter not configured or missing email.');
+    return;
+  }
 
-    const { id, status, ai_score, ai_result, ai_confidence, ai_evidence, genuine_evidence, risk_level, protective_guidance } = datacheckRow;
+  const { id, status, ai_score, ai_result, ai_confidence, ai_evidence, genuine_evidence, risk_level, protective_guidance } = datacheckRow;
 
-    const isScam = status === 'Scam';
-    const verdictColor = isScam ? '#c0392b' : '#27ae60';
-    const verdictTitle = isScam ? '⚠️ Scam Detected' : '✅ Verified as Genuine';
-    const guidanceObj = protective_guidance ? JSON.parse(protective_guidance) : [];
-    const guidanceHtml = (isScam && risk_level === 'CRITICAL' && guidanceObj.length > 0)
-        ? `<div style="background:#fff3cd; color:#856404; padding:12px; border-left:4px solid #ffeeba; margin-top:16px;">
+  const isScam = status === 'Scam';
+  const verdictColor = isScam ? '#c0392b' : '#27ae60';
+  const verdictTitle = isScam ? '⚠️ Scam Detected' : '✅ Verified as Genuine';
+  const guidanceObj = protective_guidance ? JSON.parse(protective_guidance) : [];
+  const guidanceHtml = (isScam && risk_level === 'CRITICAL' && guidanceObj.length > 0)
+    ? `<div style="background:#fff3cd; color:#856404; padding:12px; border-left:4px solid #ffeeba; margin-top:16px;">
                               <h4 style="margin:0 0 8px;">🛡️ Immediate Rescue Steps:</h4>
                               <ul style="margin:0; padding-left:20px;">
                                 ${guidanceObj.map(g => `<li>${g}</li>`).join('')}
                               </ul>
                             </div>`
-        : '';
+    : '';
 
-    const subject = `Your VerifyWall Result is Ready: ${isScam ? 'Scam Detected' : 'Verified Genuine'}`;
+  const subject = `Your VerifyWall Result is Ready: ${isScam ? 'Scam Detected' : 'Verified Genuine'}`;
 
-    const html = `
+  const html = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
   <div style="background:${verdictColor};padding:18px 24px;">
     <h2 style="color:#fff;margin:0;">Investigation Complete</h2>
@@ -158,40 +158,40 @@ async function sendUserNotification(userEmail, datacheckRow) {
     ${guidanceHtml}
     
     <div style="text-align:center;margin-top:24px;">
-      <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/responses" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">View Details & Dashboard</a>
+      <a href="${process.env.FRONTEND_URL || 'https://dev-wall.vjstartup.com'}/responses" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">View Details & Dashboard</a>
     </div>
     
   </div>
 </div>
 `;
 
-    try {
-        await t.sendMail({
-            from: `"VerifyWall Alerts" <${EMAIL_USER}>`,
-            to: userEmail,
-            subject,
-            html,
-        });
-        console.log('[emailService] ✅ User notification sent to:', userEmail);
-    } catch (err) {
-        console.error('[emailService] ❌ Failed to send user notification to:', userEmail, '—', err.message);
-    }
+  try {
+    await t.sendMail({
+      from: `"VerifyWall Alerts" <${EMAIL_USER}>`,
+      to: userEmail,
+      subject,
+      html,
+    });
+    console.log('[emailService] ✅ User notification sent to:', userEmail);
+  } catch (err) {
+    console.error('[emailService] ❌ Failed to send user notification to:', userEmail, '—', err.message);
+  }
 }
 
 /**
  * Verify SMTP connection at startup.
  */
 async function verifyConnection() {
-    const t = getTransporter();
-    if (!t) return false;
-    try {
-        await t.verify();
-        console.log('[emailService] ✅ SMTP connection verified.');
-        return true;
-    } catch (err) {
-        console.error('[emailService] ❌ SMTP connection failed:', err.message);
-        return false;
-    }
+  const t = getTransporter();
+  if (!t) return false;
+  try {
+    await t.verify();
+    console.log('[emailService] ✅ SMTP connection verified.');
+    return true;
+  } catch (err) {
+    console.error('[emailService] ❌ SMTP connection failed:', err.message);
+    return false;
+  }
 }
 
 module.exports = { sendAdminAlert, sendUserNotification, verifyConnection };

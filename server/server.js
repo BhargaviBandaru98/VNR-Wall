@@ -8,10 +8,10 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const { extendSchema } = require('./database/extendSchema');
-const { 
-  verifyMessageWithAI, 
-  extractPatternFromReason, 
-  groq 
+const {
+  verifyMessageWithAI,
+  extractPatternFromReason,
+  groq
 } = require('./services/aiVerificationService');
 const { searchOfficialSite, extractCompanyName } = require('./services/searchService');
 const { scrapeUrl } = require('./services/firecrawlService');
@@ -50,7 +50,7 @@ process.on('unhandledRejection', (err) => {
 console.log('[DIAGNOSTIC] Services loaded.');
 const app = express();
 const PORT = process.env.PORT || 6105;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3105';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dev-wall.vjstartup.com';
 
 app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());
@@ -163,34 +163,34 @@ app.post('/api/user-check-data', (req, res) => {
   if (isMongoPrimary()) {
     // MongoDB Primary Mode
     Submission.create({
-      message:                 message,
-      user_email:              userEmail || '',
-      dateReceived:            dateReceived || '',
-      personalDetails:         personalDetails || '',
-      response_details:        responseDetails || '',
-      status:                  'null',
+      message: message,
+      user_email: userEmail || '',
+      dateReceived: dateReceived || '',
+      personalDetails: personalDetails || '',
+      response_details: responseDetails || '',
+      status: 'null',
       send_email_notification: notifyFlag === 1,
-      notification_requested:  false,
+      notification_requested: false,
     })
       .then((newSubmission) => {
         const _mongoInsertMs = Date.now() - _pipelineStart;
         logger.logDB('insert', 'mongo', 'success', { id: newSubmission._id, latencyMs: _mongoInsertMs });
         console.log("✅ Data inserted (Mongo Primary), ID:", newSubmission._id);
-        
+
         // Respond with Mongo ID (stringified)
         res.json({ success: true, id: newSubmission._id });
 
         // Shadow Write to SQLite (for fallback/observability)
         db.run(sql, params, function (err) {
           if (err) {
-             logger.logDB('insert', 'sqlite', 'failure', { error: err.message, shadow: true });
+            logger.logDB('insert', 'sqlite', 'failure', { error: err.message, shadow: true });
           } else {
-             const sqliteId = this.lastID;
-             // Link Mongo record to SQLite ID for backward-compatible background sync
-             newSubmission.sqlite_id = sqliteId;
-             newSubmission.save();
-             logger.logDB('insert', 'sqlite', 'success', { id: sqliteId, shadow: true });
-             startPipeline(sqliteId, newSubmission._id, message, personalDetails, responseDetails, dateReceived, notifyFlag, userEmail, _pipelineStart, 0, _mongoInsertMs);
+            const sqliteId = this.lastID;
+            // Link Mongo record to SQLite ID for backward-compatible background sync
+            newSubmission.sqlite_id = sqliteId;
+            newSubmission.save();
+            logger.logDB('insert', 'sqlite', 'success', { id: sqliteId, shadow: true });
+            startPipeline(sqliteId, newSubmission._id, message, personalDetails, responseDetails, dateReceived, notifyFlag, userEmail, _pipelineStart, 0, _mongoInsertMs);
           }
         });
       })
@@ -216,15 +216,15 @@ app.post('/api/user-check-data', (req, res) => {
       if (shouldWriteToMongo()) {
         const _mongoInsertStart = Date.now();
         Submission.create({
-          sqlite_id:               newId,
-          message:                 message,
-          user_email:              userEmail || '',
-          dateReceived:            dateReceived || '',
-          personalDetails:         personalDetails || '',
-          response_details:        responseDetails || '',
-          status:                  'null',
+          sqlite_id: newId,
+          message: message,
+          user_email: userEmail || '',
+          dateReceived: dateReceived || '',
+          personalDetails: personalDetails || '',
+          response_details: responseDetails || '',
+          status: 'null',
           send_email_notification: notifyFlag === 1,
-          notification_requested:  false,
+          notification_requested: false,
         })
           .then(() => {
             _mongoInsertMs = Date.now() - _mongoInsertStart;
@@ -243,26 +243,26 @@ app.post('/api/user-check-data', (req, res) => {
     });
   }
 
-    // Triple-Layer Defense Pipeline — runs after response, never blocks the request
-    function startPipeline(sqliteId, mongoId, message, personalDetails, responseDetails, dateReceived, notifyFlag, userEmail, _pipelineStart, _sqliteInsertMs, _mongoInsertMs) {
-      setImmediate(async () => {
-        // Track aggregate times
-        let aggregateSqliteMs = _sqliteInsertMs;
-        let aggregateMongoMs  = _mongoInsertMs; 
+  // Triple-Layer Defense Pipeline — runs after response, never blocks the request
+  function startPipeline(sqliteId, mongoId, message, personalDetails, responseDetails, dateReceived, notifyFlag, userEmail, _pipelineStart, _sqliteInsertMs, _mongoInsertMs) {
+    setImmediate(async () => {
+      // Track aggregate times
+      let aggregateSqliteMs = _sqliteInsertMs;
+      let aggregateMongoMs = _mongoInsertMs;
 
-        try {
-          console.log('\n====== PIPELINE START: ID', sqliteId || mongoId, '======');
-          const existingSubmission = await (async () => {
-            if (isMongoPrimary()) {
-              const query = mongoId ? { _id: mongoId } : { sqlite_id: Number(sqliteId) };
-              return await Submission.findOne(query).lean();
-            }
-            return new Promise((resolve) => {
-              db.get(`SELECT submission_status FROM datacheck WHERE id = ?`, [sqliteId || mongoId], (err, row) => {
-                resolve(err ? null : row);
-              });
+      try {
+        console.log('\n====== PIPELINE START: ID', sqliteId || mongoId, '======');
+        const existingSubmission = await (async () => {
+          if (isMongoPrimary()) {
+            const query = mongoId ? { _id: mongoId } : { sqlite_id: Number(sqliteId) };
+            return await Submission.findOne(query).lean();
+          }
+          return new Promise((resolve) => {
+            db.get(`SELECT submission_status FROM datacheck WHERE id = ?`, [sqliteId || mongoId], (err, row) => {
+              resolve(err ? null : row);
             });
-          })();
+          });
+        })();
 
         if (existingSubmission?.submission_status === 'ADMIN_VERIFIED') {
           console.log('[Pipeline] ⚠️  Submission', sqliteId || mongoId, 'is ADMIN_VERIFIED — skipping AI re-verification.');
@@ -273,10 +273,10 @@ app.post('/api/user-check-data', (req, res) => {
         console.log('[Deduplication] Checking for existing identical message...');
         const existingResult = await (async () => {
           if (isMongoPrimary()) {
-            const duplicate = await Submission.findOne({ 
-              message, 
-              ai_checked: true, 
-              _id: { $ne: mongoId } 
+            const duplicate = await Submission.findOne({
+              message,
+              ai_checked: true,
+              _id: { $ne: mongoId }
             }).lean();
             return duplicate;
           }
@@ -317,7 +317,7 @@ app.post('/api/user-check-data', (req, res) => {
               }
             );
           }
-          
+
           await new Promise((resolve) => {
             db.run(
               `UPDATE datacheck SET status = ?, ai_score = ?, ai_result = ?, ai_confidence = ?, ai_evidence = ?, genuine_evidence = ?, risk_level = ?, protective_guidance = ?, is_expired = ?, ai_checked = 1, ai_last_checked = datetime('now'), marked_by = 'auto' WHERE id = ?`,
@@ -345,14 +345,14 @@ app.post('/api/user-check-data', (req, res) => {
         if (webRisk.isUnsafe) {
           investigationPath.push(`Web Risk BLOCKED (${webRisk.threatType})`);
           const evidence = `BLOCKED: URL flagged by Google Web Risk as ${webRisk.threatType}. URL: ${webRisk.url} | Investigation: ${investigationPath.join(' → ')}`;
-          
+
           if (isMongoPrimary()) {
-             await Submission.findOneAndUpdate({ _id: mongoId }, {
-               status: 'Scam', ai_score: 100, ai_checked: true, marked_by: 'auto',
-               'ai_result.verdict': 'SCAM', 'ai_result.risk_level': 'Critical'
-             });
+            await Submission.findOneAndUpdate({ _id: mongoId }, {
+              status: 'Scam', ai_score: 100, ai_checked: true, marked_by: 'auto',
+              'ai_result.verdict': 'SCAM', 'ai_result.risk_level': 'Critical'
+            });
           }
-          
+
           db.run(
             `UPDATE datacheck SET ai_score=100, ai_result='SCAM', ai_confidence='HIGH', ai_evidence=?, ai_checked=1, ai_last_checked=datetime('now'), status='Scam', marked_by='auto' WHERE id=?`,
             [evidence, sqliteId || mongoId],
@@ -376,45 +376,45 @@ app.post('/api/user-check-data', (req, res) => {
 
         // ─── STAGE B.5: Intelligence Gathering (Phases 7, 8 & 9) ───────────────
         console.log('[Stage B.5] Fetching intelligence context...');
-        
+
         const [learningRules, campaignContext] = await Promise.all([
           // 1. Fetch active rules
           (async () => {
-             if (isMongoPrimary()) return await LearningRule.find({ is_active: true }).sort({ createdAt: -1 }).limit(20).lean();
-             return new Promise(res => db.all(`SELECT * FROM agent_learning_rules WHERE is_active = 1 ORDER BY created_at DESC LIMIT 20`, (err, rows) => res(rows || [])));
+            if (isMongoPrimary()) return await LearningRule.find({ is_active: true }).sort({ createdAt: -1 }).limit(20).lean();
+            return new Promise(res => db.all(`SELECT * FROM agent_learning_rules WHERE is_active = 1 ORDER BY created_at DESC LIMIT 20`, (err, rows) => res(rows || [])));
           })(),
           // 2. Campaign Detection
           (async () => {
-             const upiMatch = message.match(/[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/g) || [];
-             const phoneMatch = message.match(/(\+?\d{1,4}[\s-])?\d{10}/g) || [];
-             const urlMatches = message.match(/https?:\/\/[^\s"'<>()\[\],]+/gi) || [];
-             const indicators = [...new Set([...upiMatch, ...phoneMatch, ...urlMatches])];
+            const upiMatch = message.match(/[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}/g) || [];
+            const phoneMatch = message.match(/(\+?\d{1,4}[\s-])?\d{10}/g) || [];
+            const urlMatches = message.match(/https?:\/\/[^\s"'<>()\[\],]+/gi) || [];
+            const indicators = [...new Set([...upiMatch, ...phoneMatch, ...urlMatches])];
 
-             if (indicators.length === 0) return { matchFound: false, indicators: [] };
+            if (indicators.length === 0) return { matchFound: false, indicators: [] };
 
-             if (isMongoPrimary()) {
-                const rows = await Submission.find({
-                  _id: { $ne: mongoId },
-                  $or: indicators.map(ind => ({ message: { $regex: ind, $options: 'i' } }))
-                }).limit(10).lean();
-                if (!rows || rows.length === 0) return { matchFound: false, indicators: [] };
-                const scamMatches = rows.filter(r => r.status === 'Scam' || (r.ai_result && r.ai_result.verdict === 'SCAM'));
-                return { matchFound: true, reason: scamMatches.length > 0 ? 'Indicator matched previous SCAM submissions.' : 'Repeated activity detected.', indicators };
-             }
-             return new Promise(resolve => {
-                const placeholders = indicators.map(() => 'message LIKE ?').join(' OR ');
-                const params = indicators.map(ind => `%${ind}%`);
-                db.all(`SELECT id, status, message FROM datacheck WHERE id != ? AND (${placeholders}) LIMIT 10`, [sqliteId || mongoId, ...params], (err, rows) => {
-                  if (err || !rows || rows.length === 0) return resolve({ matchFound: false, indicators: [] });
-                  const scamMatches = rows.filter(r => r.status === 'Scam' || r.ai_result === 'SCAM');
-                  resolve({ matchFound: true, reason: scamMatches.length > 0 ? 'Indicator matched previous SCAM submissions.' : 'Repeated activity detected.', indicators });
-                });
-             });
+            if (isMongoPrimary()) {
+              const rows = await Submission.find({
+                _id: { $ne: mongoId },
+                $or: indicators.map(ind => ({ message: { $regex: ind, $options: 'i' } }))
+              }).limit(10).lean();
+              if (!rows || rows.length === 0) return { matchFound: false, indicators: [] };
+              const scamMatches = rows.filter(r => r.status === 'Scam' || (r.ai_result && r.ai_result.verdict === 'SCAM'));
+              return { matchFound: true, reason: scamMatches.length > 0 ? 'Indicator matched previous SCAM submissions.' : 'Repeated activity detected.', indicators };
+            }
+            return new Promise(resolve => {
+              const placeholders = indicators.map(() => 'message LIKE ?').join(' OR ');
+              const params = indicators.map(ind => `%${ind}%`);
+              db.all(`SELECT id, status, message FROM datacheck WHERE id != ? AND (${placeholders}) LIMIT 10`, [sqliteId || mongoId, ...params], (err, rows) => {
+                if (err || !rows || rows.length === 0) return resolve({ matchFound: false, indicators: [] });
+                const scamMatches = rows.filter(r => r.status === 'Scam' || r.ai_result === 'SCAM');
+                resolve({ matchFound: true, reason: scamMatches.length > 0 ? 'Indicator matched previous SCAM submissions.' : 'Repeated activity detected.', indicators });
+              });
+            });
           })()
         ]);
 
         // Phase 8: Scoring Reinforcement — Explicit Pattern Matching
-        const matchedLearningRules = (learningRules || []).filter(r => 
+        const matchedLearningRules = (learningRules || []).filter(r =>
           r.pattern && message.toLowerCase().includes(r.pattern.toLowerCase())
         );
         if (matchedLearningRules.length > 0) {
@@ -449,63 +449,63 @@ app.post('/api/user-check-data', (req, res) => {
         let scamScoreNum = 0;
 
         try {
-            aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived, learningRules, campaignContext);
-            console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Verdict:', aiResult.verdict, '| Confidence:', aiResult.confidence);
-            
-            investigationPath.push('AI Investigated');
-            if (campaignContext.matchFound) investigationPath.push('Learning Reinforced');
+          aiResult = await verifyMessageWithAI(message, pageContent, officialLinks, combinedDetails, dateReceived, learningRules, campaignContext);
+          console.log('[Stage C] Scam Score:', aiResult.scam_score, '| Genuine Score:', aiResult.genuine_score, '| Verdict:', aiResult.verdict, '| Confidence:', aiResult.confidence);
 
-            // ─── STAGE D: Determine status & save ─────────────────────────────────
-            scamScore = aiResult.scam_score;
-            genuineScore = aiResult.genuine_score;
-            confidence = aiResult.confidence;
-            riskLevel = aiResult.risk_level;
-            isExpired = aiResult.is_expired;
-            scamScoreNum = Number(scamScore) || 0;
+          investigationPath.push('AI Investigated');
+          if (campaignContext.matchFound) investigationPath.push('Learning Reinforced');
 
-            // Strict adherence to AI verdict mapping
-            if (aiResult.verdict === 'GENUINE') {
-                finalStatus = 'Genuine';
-                investigationPath.push('Auto-marked Genuine');
-            } else if (aiResult.verdict === 'SCAM') {
-                finalStatus = 'Scam';
-                investigationPath.push('Auto-marked Scam');
-            } else if (aiResult.verdict === 'SUSPICIOUS') {
-                investigationPath.push('Admin Review Triggered (Suspicious)');
-            } else {
-                investigationPath.push('Admin Review Triggered (Unknown Verdict)');
-            }
+          // ─── STAGE D: Determine status & save ─────────────────────────────────
+          scamScore = aiResult.scam_score;
+          genuineScore = aiResult.genuine_score;
+          confidence = aiResult.confidence;
+          riskLevel = aiResult.risk_level;
+          isExpired = aiResult.is_expired;
+          scamScoreNum = Number(scamScore) || 0;
 
-            const riskPrefix = riskLevel ? `[${riskLevel.toUpperCase()}] ` : '';
-            const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
-              ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
-              : '';
+          // Strict adherence to AI verdict mapping
+          if (aiResult.verdict === 'GENUINE') {
+            finalStatus = 'Genuine';
+            investigationPath.push('Auto-marked Genuine');
+          } else if (aiResult.verdict === 'SCAM') {
+            finalStatus = 'Scam';
+            investigationPath.push('Auto-marked Scam');
+          } else if (aiResult.verdict === 'SUSPICIOUS') {
+            investigationPath.push('Admin Review Triggered (Suspicious)');
+          } else {
+            investigationPath.push('Admin Review Triggered (Unknown Verdict)');
+          }
 
-            // Format evidence for legacy sqlite compatibility if needed, but strictly from AI provided data
-            const primaryEvidence = (aiResult.evidence_analysis && aiResult.evidence_analysis.length > 0) 
-              ? aiResult.evidence_analysis.map(e => e.text).join(' ') 
-              : 'No technical evidence provided.';
-              
-            finalEvidence = `${riskPrefix}${primaryEvidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
-            
-            // Only populate genuine_evidence fallback if explicitly GENUINE to match old contract, but using primary evidence text
-            if(aiResult.verdict === 'GENUINE') {
-                genuineEvidenceStr = primaryEvidence;
-            }
+          const riskPrefix = riskLevel ? `[${riskLevel.toUpperCase()}] ` : '';
+          const guidanceSuffix = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
+            ? ` | Guidance: ${aiResult.protective_guidance.join('; ')}`
+            : '';
 
-            guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
-              ? JSON.stringify(aiResult.protective_guidance)
-              : null;
+          // Format evidence for legacy sqlite compatibility if needed, but strictly from AI provided data
+          const primaryEvidence = (aiResult.evidence_analysis && aiResult.evidence_analysis.length > 0)
+            ? aiResult.evidence_analysis.map(e => e.text).join(' ')
+            : 'No technical evidence provided.';
 
-            submissionStatus = (aiResult.verdict === 'GENUINE' || aiResult.verdict === 'SCAM') ? 'AI_VERIFIED' : 'IN_REVIEW';
-            aiChecked = true;
-            markedBy = finalStatus !== 'null' ? 'auto' : undefined;
-            matchedPatterns = campaignContext.matchFound ? (campaignContext.indicators || []) : [];
+          finalEvidence = `${riskPrefix}${primaryEvidence} | Scam Score: ${scamScore} | Genuine Score: ${genuineScore}${guidanceSuffix} | Path: ${investigationPath.join(' → ')}`;
+
+          // Only populate genuine_evidence fallback if explicitly GENUINE to match old contract, but using primary evidence text
+          if (aiResult.verdict === 'GENUINE') {
+            genuineEvidenceStr = primaryEvidence;
+          }
+
+          guidanceStr = (aiResult.protective_guidance && aiResult.protective_guidance.length > 0)
+            ? JSON.stringify(aiResult.protective_guidance)
+            : null;
+
+          submissionStatus = (aiResult.verdict === 'GENUINE' || aiResult.verdict === 'SCAM') ? 'AI_VERIFIED' : 'IN_REVIEW';
+          aiChecked = true;
+          markedBy = finalStatus !== 'null' ? 'auto' : undefined;
+          matchedPatterns = campaignContext.matchFound ? (campaignContext.indicators || []) : [];
 
         } catch (aiError) {
-            console.error(`[Stage C] AI Verification failed for ID ${sqliteId || mongoId}:`, aiError.message);
-            // On AI failure, we leave it as IN_REVIEW, do not set ai_checked, leave status null. Fail loudly in logs.
-            investigationPath.push(`AI FAILED: ${aiError.message}`);
+          console.error(`[Stage C] AI Verification failed for ID ${sqliteId || mongoId}:`, aiError.message);
+          // On AI failure, we leave it as IN_REVIEW, do not set ai_checked, leave status null. Fail loudly in logs.
+          investigationPath.push(`AI FAILED: ${aiError.message}`);
         }
 
         const submissionData = {
@@ -519,36 +519,36 @@ app.post('/api/user-check-data', (req, res) => {
         };
 
         const _aiUpdateStart = Date.now();
-        
+
         let updateData = {
-          status:            finalStatus,
+          status: finalStatus,
           submission_status: submissionStatus,
-          ai_checked:        aiChecked,
-          campaign_match:    campaignContext.matchFound ? true : false,
-          matched_pattern:   matchedPatterns
+          ai_checked: aiChecked,
+          campaign_match: campaignContext.matchFound ? true : false,
+          matched_pattern: matchedPatterns
         };
 
         if (markedBy) {
-            updateData.marked_by = markedBy;
+          updateData.marked_by = markedBy;
         }
 
         if (aiChecked && aiResult !== null) {
-            updateData.ai_result = {
-                scam_score:    scamScore,
-                genuine_score: genuineScore,
-                confidence:    confidence,
-                risk_level:    riskLevel,
-                verdict:       aiResult.verdict,
-                is_expired:    isExpired,
-                evidence_analysis:   Array.isArray(aiResult.evidence_analysis)   ? aiResult.evidence_analysis   : [],
-                protective_guidance: Array.isArray(aiResult.protective_guidance) ? aiResult.protective_guidance : [],
-                final_verdict: aiResult.final_verdict || '',
-            };
-            updateData.ai_score = scamScore;
-            updateData.genuine_score = genuineScore;
-            updateData.ai_confidence = confidence;
-            updateData.risk_level = riskLevel;
-            updateData.is_expired = isExpired;
+          updateData.ai_result = {
+            scam_score: scamScore,
+            genuine_score: genuineScore,
+            confidence: confidence,
+            risk_level: riskLevel,
+            verdict: aiResult.verdict,
+            is_expired: isExpired,
+            evidence_analysis: Array.isArray(aiResult.evidence_analysis) ? aiResult.evidence_analysis : [],
+            protective_guidance: Array.isArray(aiResult.protective_guidance) ? aiResult.protective_guidance : [],
+            final_verdict: aiResult.final_verdict || '',
+          };
+          updateData.ai_score = scamScore;
+          updateData.genuine_score = genuineScore;
+          updateData.ai_confidence = confidence;
+          updateData.risk_level = riskLevel;
+          updateData.is_expired = isExpired;
         }
 
         const performSqliteUpdate = () => {
@@ -557,23 +557,23 @@ app.post('/api/user-check-data', (req, res) => {
             let params = [submissionStatus, campaignContext.matchFound ? 1 : 0, matchedPatterns.join(', '), finalStatus];
 
             if (aiChecked && aiResult !== null) {
-                sql += `, ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?, risk_level=?, protective_guidance=?, is_expired=?, ai_checked=1, ai_last_checked=datetime('now'), genuine_score=?`;
-                params.push(scamScore, aiResult.verdict, confidence, finalEvidence, genuineEvidenceStr, riskLevel, guidanceStr, isExpired ? 1 : 0, genuineScore);
+              sql += `, ai_score=?, ai_result=?, ai_confidence=?, ai_evidence=?, genuine_evidence=?, risk_level=?, protective_guidance=?, is_expired=?, ai_checked=1, ai_last_checked=datetime('now'), genuine_score=?`;
+              params.push(scamScore, aiResult.verdict, confidence, finalEvidence, genuineEvidenceStr, riskLevel, guidanceStr, isExpired ? 1 : 0, genuineScore);
             }
-            
+
             sql += ` WHERE id=?`;
             params.push(sqliteId || mongoId);
 
             db.run(sql, params, (err) => {
-                const ms = Date.now() - _aiUpdateStart;
-                if (err) {
-                  logger.logDB('update', 'sqlite', 'failure', { id: sqliteId || mongoId, error: err.message, latencyMs: ms });
-                } else {
-                  logger.logDB('update', 'sqlite', 'success', { id: sqliteId || mongoId, latencyMs: ms });
-                  aggregateSqliteMs += ms;
-                }
-                resolve();
+              const ms = Date.now() - _aiUpdateStart;
+              if (err) {
+                logger.logDB('update', 'sqlite', 'failure', { id: sqliteId || mongoId, error: err.message, latencyMs: ms });
+              } else {
+                logger.logDB('update', 'sqlite', 'success', { id: sqliteId || mongoId, latencyMs: ms });
+                aggregateSqliteMs += ms;
               }
+              resolve();
+            }
             );
           });
         };
@@ -605,11 +605,11 @@ app.post('/api/user-check-data', (req, res) => {
 
         // AUTO-VERIFICATION LOGIC
         if (finalStatus !== 'null' && notifyFlag && userEmail && aiChecked) {
-          sendUserNotification(userEmail, { 
-            id: sqliteId || mongoId, 
-            status: finalStatus, 
-            ...aiResult, 
-            ai_evidence: finalEvidence 
+          sendUserNotification(userEmail, {
+            id: sqliteId || mongoId,
+            status: finalStatus,
+            ...aiResult,
+            ai_evidence: finalEvidence
           }).catch(e => console.error('[Stage D] Notification failed:', e.message));
         }
 
@@ -643,7 +643,7 @@ app.post('/api/user-check-data', (req, res) => {
 // Get all datacheck entries
 app.get('/api/datas', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  
+
   // Extract role
   let requestor_role = 'user';
   if (req.headers.authorization) {
@@ -652,7 +652,7 @@ app.get('/api/datas', async (req, res) => {
       const token = req.headers.authorization.split(' ')[1];
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   } else if (req.headers['x-user-role']) {
     requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
   } else if (req.user) {
@@ -663,7 +663,7 @@ app.get('/api/datas', async (req, res) => {
     return subs.map(sub => {
       // Parse stringified ai_result (common in SQLite)
       if (typeof sub.ai_result === 'string') {
-        try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+        try { sub.ai_result = JSON.parse(sub.ai_result); } catch (e) { sub.ai_result = {}; }
       }
       return sub;
     });
@@ -682,7 +682,7 @@ app.get('/api/datas', async (req, res) => {
       // Fall through to SQLite
     }
   }
-  
+
   db.all('SELECT * FROM datacheck ORDER BY id DESC', (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     return res.json({
@@ -694,14 +694,14 @@ app.get('/api/datas', async (req, res) => {
 
 app.get('/api/datas/:id', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  
+
   let requestor_role = 'user';
   if (req.headers.authorization) {
     try {
       const token = req.headers.authorization.split(' ')[1];
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   } else if (req.headers['x-user-role']) {
     requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
   } else if (req.user) {
@@ -710,7 +710,7 @@ app.get('/api/datas/:id', async (req, res) => {
 
   const formatSubmission = (sub) => {
     if (typeof sub.ai_result === 'string') {
-      try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+      try { sub.ai_result = JSON.parse(sub.ai_result); } catch (e) { sub.ai_result = {}; }
     }
     return sub;
   };
@@ -735,11 +735,11 @@ app.get('/api/datas/:id', async (req, res) => {
       return res.status(500).json({ error: 'Database read failed' });
     }
   }
-  
+
   db.get('SELECT * FROM datacheck WHERE id = ?', [id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Submission not found' });
-    
+
     row = formatSubmission(row);
     return res.json({
       submission: row,
@@ -754,14 +754,14 @@ app.get('/api/datas/:id', async (req, res) => {
 // Get all submissions pending manual review
 app.get('/api/admin/in-review', async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  
+
   let requestor_role = 'user';
   if (req.headers.authorization) {
     try {
       const token = req.headers.authorization.split(' ')[1];
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
       requestor_role = (payload.role || payload.user_role || '').toLowerCase().includes('admin') ? 'admin' : 'user';
-    } catch(e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
   } else if (req.headers['x-user-role']) {
     requestor_role = req.headers['x-user-role'].toLowerCase() === 'admin' ? 'admin' : 'user';
   } else if (req.user) {
@@ -771,7 +771,7 @@ app.get('/api/admin/in-review', async (req, res) => {
   const formatSubmissions = (subs) => {
     return subs.map(sub => {
       if (typeof sub.ai_result === 'string') {
-        try { sub.ai_result = JSON.parse(sub.ai_result); } catch(e) { sub.ai_result = {}; }
+        try { sub.ai_result = JSON.parse(sub.ai_result); } catch (e) { sub.ai_result = {}; }
       }
       return sub;
     });
@@ -783,7 +783,7 @@ app.get('/api/admin/in-review', async (req, res) => {
         submission_status: 'IN_REVIEW',
         verified_by_admin: { $ne: true }
       }).sort({ createdAt: -1 }).lean();
-      
+
       submissions = formatSubmissions(submissions);
       return res.json({
         submissions: mapSubmissions(submissions),
@@ -823,12 +823,12 @@ app.post('/api/admin/verify-submission', async (req, res) => {
   const displayStatus = finalResult === 'SCAM' ? 'Scam' : 'Genuine';
 
   const updateFields = {
-    final_result:           finalResult,
-    admin_reason:           adminReason,
-    verified_by_admin:      true,
+    final_result: finalResult,
+    admin_reason: adminReason,
+    verified_by_admin: true,
     verification_timestamp: new Date(timestamp),
-    submission_status:      'ADMIN_VERIFIED',
-    status:                 displayStatus,
+    submission_status: 'ADMIN_VERIFIED',
+    status: displayStatus,
   };
 
   // ─── Primary Operation ────────────────────────────────────────────────────
@@ -836,16 +836,16 @@ app.post('/api/admin/verify-submission', async (req, res) => {
     try {
       const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { sqlite_id: Number(id) };
       const updated = await Submission.findOneAndUpdate(query, updateFields, { new: true }).lean();
-      
+
       if (!updated) return res.status(404).json({ error: 'Submission not found' });
-      
+
       logger.logDB('update', 'mongo', 'success', { id, stage: 'admin-verify' });
       res.json({ success: true, message: `Submission ${id} marked as ${finalResult}` });
 
       // Shadow Update to SQLite
       if (updated.sqlite_id) {
-         const sqliteUpdateSql = `UPDATE datacheck SET final_result=?, admin_reason=?, verified_by_admin=1, verification_timestamp=?, submission_status='ADMIN_VERIFIED', status=? WHERE id=?`;
-         db.run(sqliteUpdateSql, [finalResult, adminReason, timestamp, displayStatus, updated.sqlite_id]);
+        const sqliteUpdateSql = `UPDATE datacheck SET final_result=?, admin_reason=?, verified_by_admin=1, verification_timestamp=?, submission_status='ADMIN_VERIFIED', status=? WHERE id=?`;
+        db.run(sqliteUpdateSql, [finalResult, adminReason, timestamp, displayStatus, updated.sqlite_id]);
       }
 
       // Notification logic (extracted or repeated)
@@ -938,9 +938,9 @@ app.post('/api/admin/verify-submission', async (req, res) => {
             }
           } else {
             const learningSql = `INSERT INTO agent_learning_rules (submission_id, pattern, admin_decision, admin_reason, created_at, is_active) VALUES (?, ?, ?, ?, ?, 1)`;
-            db.run(learningSql, [id, pattern, finalResult, adminReason, timestamp], function(err) {
+            db.run(learningSql, [id, pattern, finalResult, adminReason, timestamp], function (err) {
               if (!err && isMongoConnected()) {
-                 LearningRule.create({ submission_id: String(id), pattern, admin_decision: finalResult, admin_reason: adminReason }).catch(() => {});
+                LearningRule.create({ submission_id: String(id), pattern, admin_decision: finalResult, admin_reason: adminReason }).catch(() => { });
               }
             });
           }
@@ -959,14 +959,14 @@ const LearningRule = require('./models/LearningRule');
  */
 function mapRule(doc) {
   return {
-    id:              doc._id ? doc._id.toString() : String(doc.id || ''),
-    submission_id:   doc.submission_id || '',
-    pattern:         doc.pattern || '',
-    admin_decision:  doc.admin_decision || '',
-    admin_reason:    doc.admin_reason  || '',
-    is_active:       !!doc.is_active,
-    createdAt:       doc.createdAt || doc.created_at || null,
-    updatedAt:       doc.updatedAt || null,
+    id: doc._id ? doc._id.toString() : String(doc.id || ''),
+    submission_id: doc.submission_id || '',
+    pattern: doc.pattern || '',
+    admin_decision: doc.admin_decision || '',
+    admin_reason: doc.admin_reason || '',
+    is_active: !!doc.is_active,
+    createdAt: doc.createdAt || doc.created_at || null,
+    updatedAt: doc.updatedAt || null,
   };
 }
 
@@ -1034,9 +1034,9 @@ app.post('/api/admin/learning-rules', async (req, res) => {
     try {
       const rule = await LearningRule.create({
         submission_id: submission_id.trim(),
-        pattern:       pattern.trim(),
+        pattern: pattern.trim(),
         admin_decision,
-        admin_reason:  admin_reason ? admin_reason.trim() : '',
+        admin_reason: admin_reason ? admin_reason.trim() : '',
       });
       // Shadow write to SQLite
       const learningSql = `INSERT INTO agent_learning_rules (submission_id, pattern, admin_decision, admin_reason, created_at, is_active) VALUES (?, ?, ?, ?, ?, 1)`;
@@ -1055,7 +1055,7 @@ app.post('/api/admin/learning-rules', async (req, res) => {
   // SQLite fallback
   const ts = new Date().toISOString();
   const sql = `INSERT INTO agent_learning_rules (submission_id, pattern, admin_decision, admin_reason, created_at, is_active) VALUES (?, ?, ?, ?, ?, 1)`;
-  db.run(sql, [submission_id.trim(), pattern.trim(), admin_decision, admin_reason || '', ts], function(err) {
+  db.run(sql, [submission_id.trim(), pattern.trim(), admin_decision, admin_reason || '', ts], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.status(201).json({ id: String(this.lastID), submission_id, pattern, admin_decision, admin_reason, is_active: true, createdAt: ts });
   });
@@ -1080,7 +1080,7 @@ app.put('/api/admin/learning-rules/:id/toggle', async (req, res) => {
       return res.status(500).json({ error: 'Failed to toggle learning rule.' });
     }
   }
-  db.run('UPDATE agent_learning_rules SET is_active = 1 - is_active WHERE id = ?', [id], function(err) {
+  db.run('UPDATE agent_learning_rules SET is_active = 1 - is_active WHERE id = ?', [id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
@@ -1103,7 +1103,7 @@ app.delete('/api/admin/learning-rules/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete learning rule.' });
     }
   }
-  db.run('DELETE FROM agent_learning_rules WHERE id = ?', [id], function(err) {
+  db.run('DELETE FROM agent_learning_rules WHERE id = ?', [id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true });
   });
@@ -1393,9 +1393,9 @@ app.put('/api/update-notification/:id', async (req, res) => {
         { send_email_notification: notification_requested, notification_requested: notification_requested },
         { new: true }
       ).lean();
-      
+
       if (!updated) return res.status(404).json({ error: 'Submission not found' });
-      
+
       // Shadow SQLite
       if (updated.sqlite_id) {
         db.run(`UPDATE datacheck SET send_email_notification = ?, notification_requested = ? WHERE id = ?`, [notifyVal, notifyVal, updated.sqlite_id]);
@@ -1541,7 +1541,7 @@ app.get('/debug/consistency-check/:id', async (req, res) => {
 
   // Support both Mongo ObjectId and legacy numeric SQLite IDs
   const isObjectId = mongoose.Types.ObjectId.isValid(id) && id.length === 24;
-  const numericId  = isObjectId ? null : Number(id);
+  const numericId = isObjectId ? null : Number(id);
 
   if (!isObjectId && (!numericId || isNaN(numericId))) {
     return res.status(400).json({ error: 'Invalid ID — provide a numeric SQLite ID or a Mongo ObjectId' });
@@ -1556,7 +1556,7 @@ app.get('/debug/consistency-check/:id', async (req, res) => {
 
   // 2. Fetch MongoDB record
   let mongoRecord = null;
-  let mongoError  = null;
+  let mongoError = null;
   try {
     if (!isMongoConnected()) throw new Error('MongoDB is not connected');
 
@@ -1595,9 +1595,9 @@ app.get('/debug/consistency-check/:id', async (req, res) => {
 
 // Step 6 & 7: System Status Dashboard — reflects Mongo-primary architecture
 app.get('/debug/system-status', async (req, res) => {
-  const sqliteActive   = true; // SQLite always kept as fallback
+  const sqliteActive = true; // SQLite always kept as fallback
   const mongoConnected = isMongoConnected();
-  const mongoPrimary   = isMongoPrimary();
+  const mongoPrimary = isMongoPrimary();
 
   // Pull last 5 errors from the log file
   const lastErrors = [];
@@ -1643,7 +1643,7 @@ app.get('/debug/system-status', async (req, res) => {
         resolve(err ? { total: 0, aiChecked: 0 } : row);
       });
     });
-    total     = sqliteStats.total || 0;
+    total = sqliteStats.total || 0;
     aiChecked = sqliteStats.aiChecked || 0;
     writeSuccessRate = total > 0 ? `${Math.round((aiChecked / total) * 100)}%` : 'N/A';
   }
@@ -1657,13 +1657,13 @@ app.get('/debug/system-status', async (req, res) => {
   });
 
   res.json({
-    timestamp:           new Date().toISOString(),
+    timestamp: new Date().toISOString(),
     mongoConnected,
-    sqliteActive:        true,
+    sqliteActive: true,
     mongoPrimary,
-    statsSource:         mongoPrimary ? 'mongodb' : 'sqlite',
+    statsSource: mongoPrimary ? 'mongodb' : 'sqlite',
     aiStatus,
-    totalSubmissions:    total,
+    totalSubmissions: total,
     aiChecked,
     writeSuccessRate,
     lastErrors,
@@ -1675,7 +1675,7 @@ app.get('/debug/system-status', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} → ${FRONTEND_URL}`);
 
   // ─── Phase 4 Step 7: Log active DB architecture on startup ───────────────
   const mongoMode = process.env.USE_MONGO_PRIMARY === 'true' ? 'PRIMARY' : 'SHADOW';
@@ -1683,7 +1683,7 @@ app.listen(PORT, () => {
     ? '🔴 Mongo PRIMARY mode — reads & writes served from MongoDB'
     : '🟡 Mongo SHADOW mode  — SQLite is source of truth, MongoDB is shadow-write only';
   console.log(`\n[Architecture] ${modeLabel}\n`);
-  logger.logInfo('Server startup', { port: PORT, mongoMode, sqliteActive: true });
+  logger.logInfo('Server startup', { port: PORT, mongoMode, sqliteActive: true, frontendUrl: FRONTEND_URL });
 
   // ─── Phase 1: MongoDB — non-blocking, fail-safe ──────────────────────────
   connectMongo();
