@@ -28,6 +28,7 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
 .form-container {
   max-width: 60%;
   margin: 10vh auto;
@@ -216,7 +217,8 @@ textarea:focus {
   color: var(--form-text);
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--form-placeholder);
 }
 

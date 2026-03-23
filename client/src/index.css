@@ -14,6 +14,22 @@ body {
   font-size: 16px;
 }
 
+/* ── Dark Mode Body ─────────────────────────────────────────────────────── */
+[data-theme="dark"] body {
+  background: var(--app-background, linear-gradient(145deg, #0A0F1C 100%, #1E1725 0%));
+  color: #E5E7EB;
+}
+
+/* ── Global Text Overflow Protection ───────────────────────────────────── */
+.card,
+.modal,
+.form-section,
+[class*="card"],
+[class*="modal"] {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 /* Navbar */
 .navbar {
   background-color: #1e3a8a;
@@ -82,10 +98,23 @@ body {
   max-width: 400px;
   flex: 1 1 300px;
   transition: transform 0.3s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-.card:hover {
-  /* transform: translateY(-5px); */
+/* ── Responsive Cards Grid ──────────────────────────────────────────────── */
+.card-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  padding: 1rem;
+}
+
+/* ── Dark Mode Card ─────────────────────────────────────────────────────── */
+[data-theme="dark"] .card {
+  background-color: #1e293b;
+  color: #E5E7EB;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Footer */
@@ -96,4 +125,69 @@ body {
   padding: 1rem;
   font-size: 0.9rem;
   margin-top: 2rem;
+}
+
+/* ── Global Dark Mode: Inputs, Select, Checkbox ─────────────────────────── */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] textarea {
+  background-color: #1F2937;
+  color: #E5E7EB;
+  border-color: #374151;
+}
+
+[data-theme="dark"] input[type="text"]::placeholder,
+[data-theme="dark"] input[type="email"]::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #9CA3AF;
+}
+
+/* SELECT — always white background so options text is readable in every browser */
+select {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+select option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+[data-theme="dark"] select {
+  color: #111827;
+  /* keep dark text so option text stays readable when dropdown opens */
+  background-color: #ffffff;
+  border-color: #374151;
+}
+
+/* Checkbox & label */
+[data-theme="dark"] label {
+  color: #E5E7EB;
+}
+
+input[type="checkbox"] {
+  accent-color: #6366F1;
+}
+
+/* ── Mobile Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+    gap: 1rem;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  button:not(.close-x):not(.back-button):not(.bottom-nav-button):not(.fab) {
+    width: 100%;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
 }
