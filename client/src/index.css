@@ -102,20 +102,7 @@ body {
   overflow-wrap: break-word;
 }
 
-/* ── Responsive Cards Grid ──────────────────────────────────────────────── */
-.card-grid-responsive {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
-  padding: 1rem;
-}
 
-/* ── Dark Mode Card ─────────────────────────────────────────────────────── */
-[data-theme="dark"] .card {
-  background-color: #1e293b;
-  color: #E5E7EB;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
 
 /* Footer */
 .footer {
