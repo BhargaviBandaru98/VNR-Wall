@@ -75,10 +75,10 @@
 
 .box{
   max-width: 50vw;
-  min-height: 38vh ;
+  height: 40vh ;
   padding: 6vh 2vw;
   text-align: center;
-   border: 2px solid var(--footer-box-border, #b5cbee);
+  border: 2px solid var(--footer-box-border, #b5cbee);
   filter: brightness(1);
   border-left:4px solid var(--footer-box-border-left, #3b82f6);
   margin: 1vh 1vw;
@@ -147,9 +147,9 @@
 
 @media (max-width:1024px) {
     .footer-container{  
-      margin: 0 auto 5vh auto;
+      margin: 2rem auto 2rem auto;
       max-width: 100%;
-      margin-top: clamp(100px,5vh,300px);
+      /* margin-top reduced to avoid large gap */
     }
 
     .box{
@@ -175,9 +175,9 @@
     
   @media (max-height: 950px) and (max-width: 450px) {
     .footer-container{  
-      margin: 110px auto 5vh auto;
-      margin-top:200px;
+      margin: 2rem auto 2rem auto;
       max-width: 100%;
+      /* margin-top reduced to avoid large gap */
     }
 
     .footer-container h2{
@@ -189,9 +189,9 @@
 
   @media (max-height: 750px ) and (max-width: 450px) {
     .footer-container{  
-      /* margin: 110px auto 5vh auto; */
-      margin-top:50vh;
+      margin: 2rem auto 2rem auto;
       max-width: 100%;
+      /* margin-top reduced to avoid large gap */
     }
 
   }

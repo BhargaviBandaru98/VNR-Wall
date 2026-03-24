@@ -8,7 +8,7 @@ import App from './App.jsx'
 import './index.css'
 import axios from 'axios';
 
-axios.defaults.baseURL = 'http://localhost:6105';
+axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

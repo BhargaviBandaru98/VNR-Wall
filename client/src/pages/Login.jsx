@@ -96,7 +96,7 @@ const Login = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
     // Must match exactly what is registered in Google Cloud Console
-    const redirectUri = "http://localhost:3105/login";
+    const redirectUri = import.meta.env.VITE_FRONTEND_URL + '/login';
 
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 
