@@ -26,7 +26,7 @@ backdrop-contrast-100">
           <div className="col">
             <div className="box">
               <strong>1. Submit doubtful messages:<br/></strong>
-              If something looks fake, report it here in above submit page.
+Report any suspicious or fake-looking message through the Submit Page along with the source.
             </div>
           </div>
           <div className="col">
@@ -37,19 +37,18 @@ backdrop-contrast-100">
           </div>
           <div className="col">
             <div className="box">
-              <strong>3. Wait for review:</strong> Our team checks and verifies each report.
+              <strong>3. Instant AI verification: </strong> 
+Our system automatically analyzes and gives a quick result.
             </div>
           </div>
           <div className="col">
           <div className="box">
-            <strong>4. View verified info:</strong> See if your or others' reports are marked as Fake or Genuine.
+            <strong>4. View results</strong> Check the final status of reports anytime, updated in real-time.
           </div>
           </div>
         </div>
 
-        <p className="footer-tagline mt-4 text-center">
-          <span style={{ fontWeight: 'bold' }}>© 2025 Verify Wall</span> — Built with 💙 to protect students from fraud
-        </p>
+
       </div>
     
   );

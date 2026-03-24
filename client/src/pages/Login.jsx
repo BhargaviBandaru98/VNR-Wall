@@ -95,8 +95,8 @@ const Login = () => {
     // const clientId = "454432176985-mau86u28qd49dd3n2hfeh7mpi75qlse5.apps.googleusercontent.com";
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-    // ✅ PROD: Reads redirect URI from env to support both local dev and production
-    const redirectUri = (import.meta.env.VITE_AUTH_URL || 'https://dev-wall.vjstartup.com') + '/login';
+    // Must match exactly what is registered in Google Cloud Console
+    const redirectUri = import.meta.env.VITE_FRONTEND_URL + '/login';
 
     const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile";
 

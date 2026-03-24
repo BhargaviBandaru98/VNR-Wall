@@ -1,5 +1,7 @@
 .homepage-container {
-  margin-top: 15vh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .subnav-logo {
@@ -168,7 +170,8 @@
 .card-section {
   width: 100%;
   margin: 0 auto;
-  max-height: 95vh;
+  flex: 1 0 auto;
+  /* allow to grow and push footer down */
 }
 
 .card:hover {
@@ -327,4 +330,7 @@
 
 .view-responses {
   stroke: #5078F6;
+}
+footer {
+  display: none !important;
 }
