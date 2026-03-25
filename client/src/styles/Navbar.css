@@ -117,7 +117,7 @@
     right: -35vw;
     margin: 0.5vh 0;
     padding: 0 auto;
-
+    width: auto !important;
   }
 
   .vnr-wall {
@@ -167,7 +167,7 @@
     right: -35vw;
     margin: 0.5vh 0;
     padding: 0 auto;
-
+    width: auto !important;
   }
 
   .vnr-wall {

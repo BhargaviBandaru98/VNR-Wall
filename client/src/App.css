@@ -62,9 +62,9 @@ body {
   cursor: pointer;
   transition: background 0.2s ease, transform 0.1s ease;
   position: fixed;
-  left: 194vh;
-  bottom: 4vh;
-  z-index: 1000 !important;
+  left: 95%;
+  bottom: 3%;
+  z-index: 9999 !important;
 
   display: flex;
   align-items: center;
@@ -116,6 +116,7 @@ body {
     bottom: auto;
     z-index: 1000;
     font-size: 0.9rem;
+    width: auto !important;
   }
   
 }
@@ -123,10 +124,14 @@ body {
     .theme-toggle-btn {
       position: fixed;
       left: 60%;
-      top: 1.25%;
+      top: 2%;
       bottom: auto;
       z-index: 1000;
       font-size: 0.9rem;
+      width: auto !important;
     }
-    
+    .theme-icon{
+      height: 2rem;
+      width: 2rem;
+    }
   }

@@ -352,8 +352,8 @@
 
 .submission-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 8px;
+  right: 25px;
   background: #8b5cf6;
   color: white;
   padding: 6px 12px;
