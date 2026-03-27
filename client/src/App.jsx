@@ -112,9 +112,9 @@ function App() {
             <Route
               path="/responses"
               element={
-                <ProtectedRoute>
+                // <ProtectedRoute>
                   <ViewResponsesPage />
-                </ProtectedRoute>
+                // </ProtectedRoute>
               }
             />
 
@@ -132,20 +132,20 @@ function App() {
           </Routes>
 
           <div className="desktop-only">
-      <button
-        ref={themeBtnRef}
-        onClick={toggleTheme}
-        className="theme-toggle-btn"
-        aria-label="Change Theme"
-        title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-      >
-        <div ref={themeIconRef} className="theme-icon">
-          {theme === 'dark'
-            ? <SunMedium size={20} />
-            : <MoonStar size={20} />
-          }
-        </div>
-      </button>
+        <button
+          ref={themeBtnRef}
+          onClick={toggleTheme}
+          className="theme-toggle-btn"
+          aria-label="Change Theme"
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          <div ref={themeIconRef} className="theme-icon">
+            {theme === 'dark'
+              ? <SunMedium size={20} />
+              : <MoonStar size={20} />
+            }
+          </div>
+        </button>
     </div>
         </div>
       </Router>

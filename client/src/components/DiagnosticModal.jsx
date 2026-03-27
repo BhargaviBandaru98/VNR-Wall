@@ -167,7 +167,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
                 {/* 1️⃣  Result Header Banner */}
                 {isClearScam && (
                     <div className="verdict-banner verdict-banner--scam">
-                        <AlertTriangle size={26} />
+                        {/* <AlertTriangle size={26} /> */}
                         <div>
                             {/* TOP PRIORITY: Render summaryText as the primary diagnostic insight */}
                             {summaryText && (
@@ -197,7 +197,7 @@ const DiagnosticModal = ({ isOpen, onClose, data }) => {
 
                 {isClearGenuine && (
                     <div className="verdict-banner verdict-banner--genuine">
-                        <CheckCircle2 size={26} />
+                        {/* <CheckCircle2 size={26} /> */}
                         <div>
                             {/* TOP PRIORITY: Render summaryText as the primary diagnostic insight */}
                             {summaryText && (

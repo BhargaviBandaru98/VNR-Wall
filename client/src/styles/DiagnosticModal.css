@@ -395,12 +395,14 @@
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
     .diagnostic-modal-content { width: 96%; padding: 1.8rem; }
-    .verdict-comparison { grid-template-columns: 1fr; gap: 1rem; }
     .modal-actions { justify-content: center; }
 }
 
 @media (max-width: 640px) {
     .diagnostic-modal-content { padding: 1.2rem; border-radius: 16px; }
+    .verdict-comparison { grid-template-columns: 1fr; gap: 1rem; }
     .verdict-banner { flex-direction: column; gap: 0.6rem; }
+    .verdict-panel { height: 100%; }
     .ok-btn, .rescue-btn { width: 100%; justify-content: center; }
+    
 }

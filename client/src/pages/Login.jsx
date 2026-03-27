@@ -120,7 +120,7 @@ const Login = () => {
 
   const devLogin = async (email) => {
     try {
-      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'https://dev-wall.vjstartup.com'}/api/dev/login`, { email });
+      const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'https://wall.vjstartup.com'}/api/dev/login`, { email });
       if (data.success) {
         login(data.user);
         navigate(data.user.user_role === 'Admin' ? '/admin/analytics' : '/');
@@ -306,18 +306,21 @@ const Login = () => {
                   <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: '600', color: '#374151' }}>
                     College/Organization Name <span style={{ color: '#ef4444' }}>*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={collegeName}
                     onChange={(e) => setCollegeName(e.target.value)}
-                    placeholder="e.g. VNRVJIET"
                     style={{
                       width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db',
-                      fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.2s'
+                      fontSize: '0.9rem', backgroundColor: '#fff', outline: 'none', cursor: 'pointer', transition: 'border-color 0.2s'
                     }}
                     onFocus={(e) => e.target.style.borderColor = '#2563eb'}
                     onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
-                  />
+                  >
+                    <option value="" disabled>Select your college...</option>
+                    <option value="VNR VJIET">VNR VJIET</option>
+                    <option value="CBIT">CBIT</option>
+                    <option value="GRIET">GRIET</option>
+                  </select>
                 </div>
 
                 <div style={{ marginBottom: '1rem' }}>

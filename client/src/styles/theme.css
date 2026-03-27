@@ -364,6 +364,7 @@
   .hero1 {
     background: none;
     box-shadow: none;
+    
   }
 
   .hero1::before {

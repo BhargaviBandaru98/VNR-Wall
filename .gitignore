@@ -22,3 +22,5 @@ env.*.local
 
 # VS Code settings
 .vscode/server/database.db
+
+server/database.db

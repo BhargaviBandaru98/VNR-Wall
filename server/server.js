@@ -50,7 +50,7 @@ process.on('unhandledRejection', (err) => {
 console.log('[DIAGNOSTIC] Services loaded.');
 const app = express();
 const PORT = process.env.PORT || 6105;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://dev-wall.vjstartup.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://wall.vjstartup.com';
 
 app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json());

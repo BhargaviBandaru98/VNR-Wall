@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
         setUser(parsedUser);
 
         // Refresh profile status from DB
-        fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://dev-wall.vjstartup.com'}/api/users/${parsedUser.email}`)
+        fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://wall.vjstartup.com'}/api/users/${parsedUser.email}`)
           .then(res => res.json())
           .then(dbUser => {
             if (dbUser) {
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Sync with backend
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://dev-wall.vjstartup.com'}/api/users/upsert`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://wall.vjstartup.com'}/api/users/upsert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(extendedProfileData)
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
       const upsertResult = await res.json();
 
       // Get full profile
-      const profileRes = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://dev-wall.vjstartup.com'}/api/users/${email}`);
+      const profileRes = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'https://wall.vjstartup.com'}/api/users/${email}`);
       const dbProfile = await profileRes.json();
 
       const userWithRole = {

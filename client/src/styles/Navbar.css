@@ -28,7 +28,7 @@
   overflow: hidden;
   width: 100vw;
   box-shadow: 5px 5px 15px var(--nav-box-shadow, rgba(0, 0, 0, 0.5));
-  height: 12vh !important;
+  height: 12% !important;
 }
 
 
@@ -58,7 +58,7 @@
 @media (max-width: 1024px) {
   .navbar {
     padding: 0.5rem;
-    height: 13.1vh !important;
+    height: 9% !important;
     z-index: 1000 !important;
   }
 

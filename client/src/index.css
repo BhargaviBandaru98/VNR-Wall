@@ -119,6 +119,8 @@ body {
 [data-theme="dark"] input[type="email"],
 [data-theme="dark"] input[type="date"],
 [data-theme="dark"] input[type="number"],
+[data-theme="dark"] select::before,
+[data-theme="dark"] input[type="select"]::before,
 [data-theme="dark"] textarea {
   background-color: #1F2937;
   color: #E5E7EB;
@@ -130,6 +132,17 @@ body {
 [data-theme="dark"] textarea::placeholder {
   color: #9CA3AF;
 }
+
+[data-theme="dark"] evidence-glass-card:li{
+  background: rgb(60, 58, 58) !important;
+}
+
+
+[data-theme="dark"] span{
+  color: #E5E7EB !important;
+}
+
+
 
 /* SELECT — always white background so options text is readable in every browser */
 select {

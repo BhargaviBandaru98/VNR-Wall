@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import ActionCard from '../components/ActionCard';
-import '../styles/HomePage.css';
 import Footer from '../components/Footer';
 import logo from '../assets/logo2.jpeg';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -22,7 +21,7 @@ const HomePage = () => {
   return (
     <div className="homepage-container">
       <header className="hero1">
-        <div className="hero-content">
+        <div className="hero-content" >
           <div className="main-logo">
             <img src={logo} alt="VerifyWall Logo" className="subnav-logo" />
           </div>

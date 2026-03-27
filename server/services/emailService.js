@@ -158,7 +158,7 @@ async function sendUserNotification(userEmail, datacheckRow) {
     ${guidanceHtml}
     
     <div style="text-align:center;margin-top:24px;">
-      <a href="${process.env.FRONTEND_URL || 'https://dev-wall.vjstartup.com'}/responses" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">View Details & Dashboard</a>
+      <a href="${process.env.FRONTEND_URL || 'https://wall.vjstartup.com'}/responses" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">View Details & Dashboard</a>
     </div>
     
   </div>
